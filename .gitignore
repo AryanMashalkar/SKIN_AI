@@ -32,6 +32,19 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
+
+# local API-probe test artifacts (selfies, downloaded faces, raw dumps)
+/skin-api-raw.json
+/variant_*.jpg
+/w1_*.jpg
+/wiki*.jpg
+/pravatar.jpg
+/tpdne.jpg
+/testface.jpg
+/image2*.jpg
+/selfie*.png
+/selfie*.jpg
 
 # vercel
 .vercel

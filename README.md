@@ -1,36 +1,80 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Derma — AI Skincare, matched to your skin
 
-## Getting Started
+**Derma** is a consumer-ready skincare storefront where the shopping experience
+is driven by clinical AI skin analysis. A shopper scans their face, the
+[Perfect Corp **YouCam Skin Analysis API**](https://yce.perfectcorp.com/ai-api/products/skin-analysis-api)
+scores 11 dermatological concerns, and the entire catalog reorders and scores
+itself against their real skin — then they add their matched routine to the bag
+and check out.
 
-First, run the development server:
+Built for the **YouCam API Skin AI & Apparel VTO Hackathon**.
+
+---
+
+## Why this is different
+
+Most skin-analysis demos stop at a report screen. Derma treats the API as what
+Perfect Corp actually sells it as — **a retail conversion engine**:
+
+- **Scan → Score → Shop.** Analysis isn't a gimmick bolted onto the side; it is
+  the thing that ranks the store.
+- **Every recommendation is explainable.** Each product's match score traces
+  directly back to your concern deficits (see `src/lib/matching.ts`).
+- **It looks like a store a Perfect Corp client would actually ship** — cart,
+  mock checkout, filters, the works.
+
+## How the Perfect Corp integration works
+
+The full server-side flow lives in `src/lib/perfectcorp.ts` (S2S API v2.1):
+
+| Step | Endpoint | Purpose |
+| ---- | -------- | ------- |
+| 1 | `POST /s2s/v2.1/file/skin-analysis` | Register the image, get a presigned upload URL + `file_id` |
+| 2 | `PUT <presigned url>` | Upload the raw JPEG bytes (no auth header) |
+| 3 | `POST /s2s/v2.1/task/skin-analysis` | Start analysis for the SD-tier `dst_actions` |
+| 4 | `GET /s2s/v2.1/task/skin-analysis/{task_id}` | Poll until `success`, read scores |
+
+Auth is `Authorization: Bearer <PERFECTCORP_API_KEY>`.
+
+Selfies are **preprocessed in the browser** (`src/lib/image.ts`) — center-cropped
+to a 3:4 portrait and re-encoded — to avoid the API's `error_src_face_too_small`
+and oversize rejections.
+
+> **Graceful fallback:** if `PERFECTCORP_API_KEY` is unset (or a live call
+> fails mid-demo), the API route returns a realistic **simulated** profile so the
+> storefront is always presentable. The UI clearly labels demo data.
+
+## Getting started
 
 ```bash
+npm install
+cp .env.example .env.local   # add PERFECTCORP_API_KEY to hit the real API
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000 and click **Scan my skin**.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Tech
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Next.js 16** (App Router) + **TypeScript** + **Tailwind CSS v4**
+- **Zustand** for cart + skin-profile state (persisted to localStorage)
+- Perfect Corp YouCam Skin Analysis API (S2S v2.1)
 
-## Learn More
+## Project structure
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+src/
+  app/
+    page.tsx                    # Storefront home (hero, how-it-works, shop)
+    layout.tsx                  # Navbar + Cart + Scan modal shell
+    api/skin/analyze/route.ts   # Server route: runs analysis or mock fallback
+  lib/
+    perfectcorp.ts              # ★ Perfect Corp S2S API client (server-only)
+    skin.ts                     # Concern model, severity, response normalizer
+    mock.ts                     # Simulated profile for keyless demos
+    products.ts                 # Catalog + concern tagging
+    matching.ts                 # Explainable product-ranking engine
+    image.ts                    # Client-side selfie preprocessing
+    store.ts                    # Zustand cart + profile store
+  components/                   # Navbar, Hero, Shop, ScanModal, SkinReport, …
+```
