@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { hasApiKey, runSkinAnalysis } from "@/lib/perfectcorp";
 import { normalizeApiResult, type SkinProfile } from "@/lib/skin";
-import { sampleSkinTone } from "@/lib/skinTone";
+import { analyzeSkinTone } from "@/lib/color";
 import { mockSkinProfile } from "@/lib/mock";
 
 export const runtime = "nodejs";
@@ -16,49 +16,42 @@ interface AnalyzeResponse {
 
 export async function POST(request: NextRequest) {
   let file: File | null = null;
+  let skinHex: string | null = null;
   try {
     const form = await request.formData();
     const value = form.get("image");
     if (value instanceof File) file = value;
+    const hex = form.get("skinHex");
+    if (typeof hex === "string" && /^#[0-9a-fA-F]{6}$/.test(hex)) skinHex = hex;
   } catch {
     // no/invalid form body
   }
 
-  // Read the bytes once (used for both the skin analysis and the personal-
-  // colour sampling). The tone analysis runs on the user's real selfie even
-  // when the concern scores are mocked, so the colour story is always live.
-  let bytes: Uint8Array | null = null;
-  if (file) {
-    try {
-      bytes = new Uint8Array(await file.arrayBuffer());
-    } catch {
-      /* leave bytes null */
-    }
-  }
-
-  async function withTone(profile: SkinProfile): Promise<SkinProfile> {
-    if (bytes) {
+  // Attach the personal-colour analysis. The skin colour is sampled in the
+  // browser (from the face region of the scan photo) and passed as `skinHex`,
+  // so the server stays pure — no native image decoding.
+  function withTone(profile: SkinProfile): SkinProfile {
+    if (skinHex) {
       try {
-        profile.tone = await sampleSkinTone(bytes);
-        return profile;
+        profile.tone = analyzeSkinTone(skinHex);
       } catch {
-        /* fall through to synthetic tone */
+        /* tone is optional */
       }
     }
     return profile;
   }
 
-  // No API key configured -> mock concern scores, but still sample the REAL
-  // skin tone from the uploaded photo so the personal-colour flow works.
+  // No API key configured -> mock concern scores, but still attach the REAL
+  // sampled skin tone so the personal-colour flow works.
   if (!hasApiKey()) {
     return json({
-      profile: await withTone(mockSkinProfile()),
+      profile: withTone(mockSkinProfile()),
       source: "mock",
-      note: "PERFECTCORP_API_KEY not set — simulated concern scores; skin tone is measured from your photo.",
+      note: "PERFECTCORP_API_KEY not set — simulated concern scores; skin tone measured from your photo.",
     });
   }
 
-  if (!file || !bytes) {
+  if (!file) {
     return json(
       { profile: mockSkinProfile(), source: "mock", note: "No image received." },
       400,
@@ -66,17 +59,18 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const bytes = new Uint8Array(await file.arrayBuffer());
     const contentType = file.type || "image/jpeg";
     const fileName = file.name || "scan.jpg";
     const raw = await runSkinAnalysis(bytes, fileName, contentType);
-    const profile = await withTone(normalizeApiResult(raw));
+    const profile = withTone(normalizeApiResult(raw));
     return json({ profile, source: "perfectcorp" });
   } catch (err) {
-    // Live call failed — never break the demo, fall back to a mock result but
+    // Live call failed — never break the demo, fall back to mock scores but
     // keep the real sampled tone.
     const message = err instanceof Error ? err.message : "unknown error";
     return json({
-      profile: await withTone(mockSkinProfile()),
+      profile: withTone(mockSkinProfile()),
       source: "mock",
       note: `Live analysis failed (${message}) — showing simulated scores; skin tone measured from your photo.`,
     });

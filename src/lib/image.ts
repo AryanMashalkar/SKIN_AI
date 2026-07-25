@@ -19,6 +19,62 @@ export interface Processed {
   previewUrl: string;
   width: number;
   height: number;
+  /** Representative skin colour hex sampled from the face region, or null. */
+  skinHex: string | null;
+}
+
+/** Is a pixel plausibly facial skin? Broad across skin depths; rejects
+ *  hair/background/shadow/highlight and strongly non-skin hues. */
+function isSkinPixel(r: number, g: number, b: number): boolean {
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  if (max < 40 || min > 245) return false;
+  if (!(r > g && g > b)) return false;
+  if (r - b < 12) return false;
+  const sat = (max - min) / (max || 1);
+  if (sat > 0.62) return false;
+  return true;
+}
+
+/** Samples a representative skin colour from the central face region of a
+ *  drawn canvas. Returns a hex string, or null if too few skin pixels. */
+function sampleSkinHex(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+): string | null {
+  // Central window biased slightly above middle (cheeks/forehead).
+  const cx = Math.round(w * 0.25);
+  const cy = Math.round(h * 0.22);
+  const cw = Math.round(w * 0.5);
+  const ch = Math.round(h * 0.4);
+  let data: Uint8ClampedArray;
+  try {
+    data = ctx.getImageData(cx, cy, cw, ch).data;
+  } catch {
+    return null;
+  }
+
+  let rs = 0;
+  let gs = 0;
+  let bs = 0;
+  let n = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    if (isSkinPixel(r, g, b)) {
+      rs += r;
+      gs += g;
+      bs += b;
+      n++;
+    }
+  }
+  if (n < 50) return null;
+
+  const to2 = (v: number) =>
+    Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0");
+  return `#${to2(rs / n)}${to2(gs / n)}${to2(bs / n)}`;
 }
 
 export async function preprocessImage(file: File): Promise<Processed> {
@@ -71,6 +127,7 @@ export async function preprocessImage(file: File): Promise<Processed> {
     previewUrl: canvas.toDataURL("image/jpeg", 0.8),
     width: outW,
     height: outH,
+    skinHex: sampleSkinHex(ctx, outW, outH),
   };
 }
 
