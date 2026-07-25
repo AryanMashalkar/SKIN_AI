@@ -36,6 +36,11 @@ yarn-error.log*
 
 # local API-probe test artifacts (selfies, downloaded faces, raw dumps)
 /skin-api-raw.json
+/vto-api-raw.json
+/public/uploads
+/dev.log
+/dev.err
+/cf.err
 /variant_*.jpg
 /w1_*.jpg
 /wiki*.jpg
@@ -52,3 +57,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/cloudflared.exe
+/cf.log

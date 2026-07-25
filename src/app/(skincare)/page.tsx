@@ -1,4 +1,5 @@
-import { ScanFace, Sparkles, ShoppingBag } from "lucide-react";
+import { ScanFace, Sparkles, ShoppingBag, Shirt, ArrowRight } from "lucide-react";
+import Link from "next/link";
 import { Hero } from "@/components/Hero";
 import { Shop } from "@/components/Shop";
 
@@ -49,6 +50,34 @@ export default function Home() {
       </section>
 
       <Shop />
+
+      {/* Cross-promo: Fashion VTO */}
+      <section className="mx-auto max-w-6xl px-5 pb-16">
+        <Link
+          href="/fashion"
+          className="group flex flex-col items-start justify-between gap-4 overflow-hidden rounded-3xl bg-stone-900 p-8 text-white sm:flex-row sm:items-center"
+        >
+          <div className="flex items-center gap-4">
+            <span className="grid h-14 w-14 place-items-center rounded-2xl bg-white/10">
+              <Shirt className="h-7 w-7" />
+            </span>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-white/60">
+                Also from Derma
+              </p>
+              <h3 className="mt-0.5 text-xl font-semibold">
+                Try on the apparel collection
+              </h3>
+              <p className="text-sm text-white/70">
+                See clothes on your own photo with AI virtual try-on.
+              </p>
+            </div>
+          </div>
+          <span className="flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-stone-900 transition group-hover:gap-3">
+            Open the fitting room <ArrowRight className="h-4 w-4" />
+          </span>
+        </Link>
+      </section>
     </main>
   );
 }

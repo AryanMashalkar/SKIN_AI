@@ -1,6 +1,7 @@
 "use client";
 
-import { RotateCcw, FlaskConical, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { RotateCcw, FlaskConical, Sparkles, Shirt, ArrowRight } from "lucide-react";
 import {
   ALL_CONCERNS,
   CONCERN_META,
@@ -10,6 +11,7 @@ import {
   type SkinProfile,
 } from "@/lib/skin";
 import { heroPick } from "@/lib/matching";
+import { deriveStyleProfile } from "@/lib/fashion/styling";
 import { ConcernGauge } from "@/components/ConcernGauge";
 import { useStore } from "@/lib/store";
 
@@ -18,6 +20,7 @@ export function SkinReport({ profile }: { profile: SkinProfile }) {
   const addToCart = useStore((s) => s.addToCart);
   const focus = rankedConcerns(profile).slice(0, 3);
   const hero = heroPick(profile);
+  const style = deriveStyleProfile(profile);
 
   return (
     <section id="report" className="animate-float-in scroll-mt-20">
@@ -140,6 +143,34 @@ export function SkinReport({ profile }: { profile: SkinProfile }) {
           </div>
         )}
       </div>
+
+      {/* Skin-informed styling bridge — carries the scan into the fitting room. */}
+      <Link
+        href="/fashion"
+        className="group mt-4 flex flex-col items-start justify-between gap-4 overflow-hidden rounded-3xl border border-stone-800 bg-stone-900 p-6 text-white transition hover:bg-stone-800 sm:flex-row sm:items-center"
+      >
+        <div className="flex items-center gap-4">
+          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white/10">
+            <Shirt className="h-7 w-7" />
+          </span>
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-fuchsia-300/80">
+              Now style it · {style.headline}
+            </p>
+            <h3 className="mt-0.5 text-xl font-semibold">
+              See the fitting room, styled to your skin
+            </h3>
+            <p className="text-sm text-white/70">
+              {style.rednessElevated
+                ? `Your redness score (${style.rednessScore}/100) means cooler tones will flatter you — we've ordered the collection to match.`
+                : `We'll match garment colours to your complexion and let you try them on your own photo.`}
+            </p>
+          </div>
+        </div>
+        <span className="flex shrink-0 items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-stone-900 transition group-hover:gap-3">
+          Open the fitting room <ArrowRight className="h-4 w-4" />
+        </span>
+      </Link>
     </section>
   );
 }

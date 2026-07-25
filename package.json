@@ -10,6 +10,7 @@
     "probe": "node scripts/probe-skin.mjs"
   },
   "dependencies": {
+    "@vercel/blob": "^2.6.1",
     "lucide-react": "^1.26.0",
     "next": "16.2.11",
     "react": "19.2.4",
