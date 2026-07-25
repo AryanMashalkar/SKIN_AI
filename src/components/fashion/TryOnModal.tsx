@@ -282,16 +282,26 @@ export function TryOnModal() {
               </button>
             )}
 
-            <div className="flex items-center gap-2">
-              <div className="flex flex-1 flex-wrap gap-1.5">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-wide text-white/50">
+                  Size
+                </span>
+                <span className="text-xs text-white/60">
+                  Selected: <span className="font-semibold text-white">{size || "—"}</span>
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
                 {garment.sizes.map((s) => (
                   <button
                     key={s}
+                    type="button"
+                    aria-pressed={size === s}
                     onClick={() => setSize(s)}
-                    className={`min-w-9 rounded-lg border px-2.5 py-1.5 text-sm transition ${
+                    className={`min-w-10 rounded-lg border px-3 py-2 text-sm font-medium transition ${
                       size === s
                         ? "border-white bg-white text-neutral-900"
-                        : "border-white/20 text-white/70 hover:bg-white/10"
+                        : "border-white/20 text-white/70 hover:border-white/40 hover:bg-white/10"
                     }`}
                   >
                     {s}
@@ -302,13 +312,14 @@ export function TryOnModal() {
 
             <button
               onClick={handleAdd}
-              className={`flex w-full items-center justify-center gap-2 rounded-full py-3 text-sm font-semibold transition ${
+              disabled={!size}
+              className={`flex w-full items-center justify-center gap-2 rounded-full py-3 text-sm font-semibold transition disabled:opacity-40 ${
                 added ? "bg-emerald-500 text-white" : "bg-neutral-100 text-neutral-900 hover:bg-white"
               }`}
             >
               {added ? (
                 <>
-                  <Check className="h-4 w-4" /> Added to bag
+                  <Check className="h-4 w-4" /> Added to bag · Size {size}
                 </>
               ) : (
                 <>
