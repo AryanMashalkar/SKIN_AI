@@ -8,6 +8,10 @@ import {
   ScanFace,
   Loader2,
   AlertCircle,
+  Check,
+  Sun,
+  UserRound,
+  Ban,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { preprocessImage } from "@/lib/image";
@@ -162,11 +166,42 @@ export function ScanModal() {
           {phase === "choose" && (
             <div className="space-y-3">
               <p className="text-sm text-stone-500">
-                Take or upload a clear, front-facing selfie in good light. Keep
-                your <span className="font-medium text-stone-700">whole head and
-                shoulders in frame</span> — don&apos;t crop the top of your head —
-                and get close enough that your face fills most of the photo.
+                Take or upload a clear, front-facing selfie in good light — we
+                score 11 skin concerns from it in seconds.
               </p>
+
+              {/* Photo tips: helps anyone get an accepted scan on the first try. */}
+              <div className="rounded-2xl border border-stone-200 bg-stone-50/70 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">
+                  For an accurate scan
+                </p>
+                <ul className="mt-2.5 space-y-2">
+                  {[
+                    { icon: UserRound, text: "Whole head & shoulders in frame — don't crop the top of your head" },
+                    { icon: ScanFace, text: "Get close so your face fills most of the photo" },
+                    { icon: Sun, text: "Bright, even light — face a window, avoid harsh shadows" },
+                    { icon: Check, text: "Look straight at the camera, neutral expression, eyes open" },
+                  ].map((t) => (
+                    <li key={t.text} className="flex items-start gap-2.5 text-xs text-stone-600">
+                      <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-100 text-emerald-600">
+                        <t.icon className="h-3 w-3" />
+                      </span>
+                      <span>{t.text}</span>
+                    </li>
+                  ))}
+                  <li className="flex items-start gap-2.5 text-xs text-stone-600">
+                    <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-rose-100 text-rose-500">
+                      <Ban className="h-3 w-3" />
+                    </span>
+                    <span>No beauty filters, sunglasses, or hats — they skew the results</span>
+                  </li>
+                </ul>
+                <p className="mt-3 border-t border-stone-200 pt-2.5 text-[11px] text-stone-400">
+                  Scanning a friend? Get their okay first — the photo is sent to
+                  Perfect Corp&apos;s AI for analysis and never stored.
+                </p>
+              </div>
+
               <button
                 onClick={startCamera}
                 className="flex w-full items-center gap-3 rounded-2xl border border-stone-200 p-4 text-left transition hover:border-violet-300 hover:bg-violet-50/50"
