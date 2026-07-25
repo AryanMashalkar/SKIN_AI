@@ -1,57 +1,77 @@
 // Skin-informed styling engine — the bridge between the two Perfect Corp APIs.
 //
-// The Skin Analysis API returns objective, per-concern scores (0-100, higher =
-// healthier). Two of those concerns map directly onto well-established colour-
-// analysis principles that professional stylists and makeup artists use every
-// day:
+// When a personal-colour analysis is available (skin tone sampled from the
+// selfie -> CIELAB / ITA° / 12-season, see lib/color.ts), garments are matched
+// to the shopper's SEASON: colours in their palette flatter them, colours in
+// the opposite temperature can fight their complexion. This is the real
+// methodology of a professional colour analyst.
 //
-//   • REDNESS  — cool, muted tones (blues, teals, cool greys) visually calm
-//     visible facial redness, while warm reds / oranges / bricks sit next to
-//     the same hue on the colour wheel and amplify it.
-//   • RADIANCE — a duller complexion is lifted by clearer, higher-contrast
-//     colours worn near the face; muddy, low-contrast tones wash it out.
+// If no tone is available we fall back to a lighter-weight proxy driven by the
+// Skin Analysis redness/radiance scores, so the feature still works.
 //
-// So a real skin scan can genuinely inform which *garments* flatter a shopper —
-// a story a skin-only or apparel-only app cannot tell. Everything here is
-// deterministic and explainable: every recommendation traces back to a score.
-//
-// This is a cosmetic / styling judgement, never a medical claim.
+// Everything is deterministic and explainable — every verdict traces to a
+// measured value. This is a cosmetic / styling judgement, never medical advice.
 
-import type { Garment, ColorWarmth } from "@/lib/fashion/products";
+import type { Garment } from "@/lib/fashion/products";
 import type { SkinProfile } from "@/lib/skin";
+import {
+  analyzeSkinTone,
+  UNDERTONE_LABEL,
+  type Undertone,
+} from "@/lib/color";
 
 export type PaletteTemp = "cool" | "warm" | "balanced";
 
 export interface StyleProfile {
-  /** Recommended colour temperature to steer the shopper toward. */
+  /** Colour temperature to steer toward. */
   recommend: PaletteTemp;
-  rednessScore: number;
-  radianceScore: number;
-  /** True when redness is elevated enough to actively steer toward cool tones. */
-  rednessElevated: boolean;
-  /** True when radiance is low enough to favour clearer, brighter colours. */
-  radianceLow: boolean;
-  /** One-line headline for the styling banner. */
+  /** True when tone came from a real personal-colour analysis. */
+  hasTone: boolean;
+  undertone: Undertone;
+  seasonLabel?: string;
+  /** Palette swatches for the shopper's season (empty in proxy mode). */
+  palette: { hex: string; name: string }[];
   headline: string;
-  /** Supporting bullet points, each citing a real score. */
   rationale: string[];
 }
 
-// A concern score below this is "in need" / elevated (higher score = healthier).
 const REDNESS_ELEVATED_BELOW = 78;
 const RADIANCE_LOW_BELOW = 78;
 
-/**
- * Derives a styling recommendation from a real skin profile. Grounded in the
- * `redness` and `radiance` scores from the Perfect Corp Skin Analysis API.
- */
+/** Derives a styling recommendation from a skin profile. */
 export function deriveStyleProfile(profile: SkinProfile): StyleProfile {
+  const tone = profile.tone;
+
+  // --- Primary path: real personal-colour analysis --------------------------
+  if (tone) {
+    const recommend: PaletteTemp =
+      tone.undertone === "warm"
+        ? "warm"
+        : tone.undertone === "cool"
+          ? "cool"
+          : "balanced";
+
+    const rationale = [
+      `Your skin tone reads as ${UNDERTONE_LABEL[tone.undertone].toLowerCase()} (ITA° ${tone.ita}), placing you in the ${tone.seasonLabel} palette.`,
+      tone.description,
+    ];
+
+    return {
+      recommend,
+      hasTone: true,
+      undertone: tone.undertone,
+      seasonLabel: tone.seasonLabel,
+      palette: tone.palette,
+      headline: `${tone.seasonLabel} · ${tone.headline}`,
+      rationale,
+    };
+  }
+
+  // --- Fallback path: redness/radiance proxy --------------------------------
   const rednessScore = profile.scores.redness;
   const radianceScore = profile.scores.radiance;
   const rednessElevated = rednessScore < REDNESS_ELEVATED_BELOW;
   const radianceLow = radianceScore < RADIANCE_LOW_BELOW;
-
-  // Redness is the dominant driver of temperature: elevated redness → cool.
   const recommend: PaletteTemp = rednessElevated ? "cool" : "balanced";
 
   const rationale: string[] = [];
@@ -66,54 +86,37 @@ export function deriveStyleProfile(profile: SkinProfile): StyleProfile {
   }
   if (radianceLow) {
     rationale.push(
-      `Radiance came in at ${radianceScore}/100 — clearer, higher-contrast colours will lift your complexion more than muted, washed-out shades.`,
-    );
-  } else {
-    rationale.push(
-      `Radiance is strong (${radianceScore}/100), so richer and softer shades both read well on you.`,
+      `Radiance came in at ${radianceScore}/100 — clearer, higher-contrast colours will lift your complexion.`,
     );
   }
 
-  const headline = rednessElevated
-    ? "Cool, calming tones will flatter you most"
-    : radianceLow
-      ? "Clear, high-contrast colours will make you glow"
-      : "Your complexion is versatile — wear what you love";
-
   return {
     recommend,
-    rednessScore,
-    radianceScore,
-    rednessElevated,
-    radianceLow,
-    headline,
+    hasTone: false,
+    undertone: rednessElevated ? "cool" : "neutral",
+    palette: [],
+    headline: rednessElevated
+      ? "Cool, calming tones will flatter you most"
+      : "Your complexion is versatile — wear what you love",
     rationale,
   };
 }
 
 export interface StyledGarment {
   garment: Garment;
-  /** 0-100 flatter score for this complexion. */
-  score: number;
-  /** True when this garment's colour actively flatters the skin. */
+  score: number; // 0-100 flatter score for this complexion
   flatters: boolean;
-  /** True when the colour may work against the skin (worth a gentle caution). */
   caution: boolean;
-  /** Explainable one-liner shown on the card / try-on modal. */
   reason: string;
 }
 
-// How much a garment's colour temperature counts. Colour worn on the upper or
-// full body sits right next to the face, so it matters most; lower-body colour
-// barely affects complexion.
+// Upper/full-body colour sits next to the face and matters most; lower-body
+// colour barely affects complexion.
 function tempWeight(g: Garment): number {
   return g.garmentCategory === "lower_body" ? 0.3 : 1;
 }
 
-/**
- * Scores and ranks garments for a given skin profile, best-flattering first.
- * Deterministic and explainable.
- */
+/** Ranks garments for a skin profile, best-flattering first. */
 export function rankGarmentsForSkin(
   profile: SkinProfile,
   garments: Garment[],
@@ -126,26 +129,35 @@ export function rankGarmentsForSkin(
     let flatters = false;
     let caution = false;
 
+    // Garment colour temperature. Prefer analysing the actual swatch hex so
+    // it stays consistent with the same colour science; fall back to the
+    // hand-set `warmth` field.
+    const garmentWarmth = garmentUndertone(garment);
+
     if (style.recommend === "cool") {
-      if (garment.warmth === "cool") {
+      if (garmentWarmth === "cool") {
         score += 32 * w;
         flatters = true;
-      } else if (garment.warmth === "warm") {
+      } else if (garmentWarmth === "warm") {
         score -= 28 * w;
         caution = true;
       } else {
-        score += 12 * w; // neutrals are safe
+        score += 12 * w;
+      }
+    } else if (style.recommend === "warm") {
+      if (garmentWarmth === "warm") {
+        score += 32 * w;
+        flatters = true;
+      } else if (garmentWarmth === "cool") {
+        score -= 28 * w;
+        caution = true;
+      } else {
+        score += 12 * w;
       }
     } else {
-      // Balanced complexion: colour temperature is not a strong steer.
-      score += garment.warmth === "neutral" ? 8 : 14;
-      flatters = garment.warmth !== "neutral";
-    }
-
-    // Low radiance rewards clearer/deeper (more saturated) colours; our warm &
-    // cool swatches read as clear jewel tones, neutrals read as muted.
-    if (style.radianceLow) {
-      score += garment.warmth === "neutral" ? -4 : 6 * w;
+      // balanced complexion: temperature isn't a strong steer
+      score += garmentWarmth === "neutral" ? 8 : 14;
+      flatters = garmentWarmth !== "neutral";
     }
 
     score = Math.round(Math.max(0, Math.min(100, score)));
@@ -162,46 +174,52 @@ export function rankGarmentsForSkin(
   return ranked.sort((a, b) => b.score - a.score);
 }
 
+/** A garment's colour temperature, from its swatch hex (consistent science). */
+function garmentUndertone(garment: Garment): Undertone {
+  if (garment.swatch) {
+    try {
+      return analyzeSkinTone(garment.swatch).undertone;
+    } catch {
+      /* fall back to hand-set warmth */
+    }
+  }
+  return garment.warmth;
+}
+
 function buildReason(
   garment: Garment,
   style: StyleProfile,
   flatters: boolean,
   caution: boolean,
 ): string {
+  const season = style.seasonLabel ?? "your palette";
+  if (style.recommend === "warm") {
+    if (flatters) return `Its ${garment.colorName} sits right in your warm ${season} palette.`;
+    if (caution) return `${cap(garment.colorName)} is a cool shade that can clash with your warm undertone — a warmer tone will suit you more.`;
+    return `A safe neutral that won't fight your warm undertone.`;
+  }
   if (style.recommend === "cool") {
-    if (flatters) {
-      return `Its ${garment.colorName} sits opposite redness on the colour wheel — it visually calms the redness your scan flagged.`;
-    }
-    if (caution) {
-      return `${cap(garment.colorName)} is a warm tone that can emphasise your flagged redness — still fun to try, but a cooler shade will suit you more.`;
-    }
+    if (flatters)
+      return style.hasTone
+        ? `Its ${garment.colorName} sits right in your cool ${season} palette.`
+        : `Its ${garment.colorName} calms the redness your scan flagged.`;
+    if (caution)
+      return style.hasTone
+        ? `${cap(garment.colorName)} is a warm shade that can clash with your cool undertone.`
+        : `${cap(garment.colorName)} is warm and can emphasise your flagged redness.`;
     return `A safe neutral that won't compete with your complexion.`;
   }
-  // Balanced complexion.
-  if (style.radianceLow && garment.warmth !== "neutral") {
-    return `The clarity of this ${garment.colorName} adds the contrast your radiance score wants.`;
-  }
-  return `Your balanced complexion carries this ${garment.colorName} easily.`;
+  return `Your ${style.hasTone ? "neutral undertone" : "balanced complexion"} carries this ${garment.colorName} easily.`;
 }
 
 function cap(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-/** Convenience: quick lookup of a single garment's styling verdict. */
+/** Single garment's styling verdict. */
 export function styleForGarment(
   profile: SkinProfile,
   garment: Garment,
 ): StyledGarment {
   return rankGarmentsForSkin(profile, [garment])[0];
-}
-
-const WARMTH_LABEL: Record<ColorWarmth, string> = {
-  cool: "Cool",
-  warm: "Warm",
-  neutral: "Neutral",
-};
-
-export function warmthLabel(w: ColorWarmth): string {
-  return WARMTH_LABEL[w];
 }

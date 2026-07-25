@@ -127,9 +127,32 @@ export default function FashionHome() {
                 </li>
               ))}
             </ul>
+
+            {/* Your palette swatches (present when a real tone was analysed). */}
+            {styleProfile.palette.length > 0 && (
+              <div className="mt-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-white/40">
+                  Your colours
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {styleProfile.palette.map((c) => (
+                    <div key={c.hex} className="flex items-center gap-1.5">
+                      <span
+                        className="h-6 w-6 rounded-full border border-white/20"
+                        style={{ background: c.hex }}
+                        title={c.name}
+                      />
+                      <span className="text-xs capitalize text-white/50">{c.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <p className="mt-4 text-xs text-white/40">
-              Based on your Perfect Corp skin scan · redness {styleProfile.rednessScore}/100 ·
-              radiance {styleProfile.radianceScore}/100. A styling suggestion, not medical advice.
+              {styleProfile.hasTone
+                ? `Based on your measured skin tone · ${styleProfile.seasonLabel} · ${styleProfile.undertone} undertone. A styling suggestion, not medical advice.`
+                : "Based on your Perfect Corp skin scan. A styling suggestion, not medical advice."}
             </p>
           </div>
         ) : (

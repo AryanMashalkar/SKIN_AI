@@ -8,6 +8,19 @@ import {
   type ConcernKey,
   type SkinProfile,
 } from "@/lib/skin";
+import { analyzeSkinTone } from "@/lib/color";
+
+// A spread of plausible skin colours across depths/undertones so the demo shows
+// variety when no real photo is available to sample.
+const MOCK_SKIN_HEXES = [
+  "#f0c8a0", // light warm
+  "#e8b98f", // light-medium warm
+  "#d9a679", // medium warm
+  "#c98a6b", // medium
+  "#a9714f", // medium-deep
+  "#8a5a3c", // deep warm
+  "#e6bfa3", // light cool-neutral
+];
 
 const PRESETS: Partial<Record<ConcernKey, [number, number]>>[] = [
   // Oily / breakout-prone
@@ -50,5 +63,8 @@ export function mockSkinProfile(): SkinProfile {
     overall,
     demo: true,
     capturedAt: new Date().toISOString(),
+    tone: analyzeSkinTone(
+      MOCK_SKIN_HEXES[Math.floor(Math.random() * MOCK_SKIN_HEXES.length)],
+    ),
   };
 }

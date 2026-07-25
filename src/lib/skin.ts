@@ -169,6 +169,10 @@ export interface SkinProfile {
   overall: number;
   demo: boolean;
   capturedAt: string;
+  // Personal-colour analysis sampled from the selfie (optional — present when
+  // the tone sampler succeeds). Typed as SkinTone in lib/color to avoid a hard
+  // import cycle here; see lib/color.ts.
+  tone?: import("@/lib/color").SkinTone;
 }
 
 /** Concerns sorted worst-first (lowest score = most in need of care). */

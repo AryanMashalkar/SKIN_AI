@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { RotateCcw, FlaskConical, Sparkles, Shirt, ArrowRight } from "lucide-react";
+import { RotateCcw, FlaskConical, Sparkles, Shirt, ArrowRight, Palette } from "lucide-react";
 import {
   ALL_CONCERNS,
   CONCERN_META,
@@ -10,6 +10,7 @@ import {
   SEVERITY_META,
   type SkinProfile,
 } from "@/lib/skin";
+import { UNDERTONE_LABEL, DEPTH_LABEL } from "@/lib/color";
 import { heroPick } from "@/lib/matching";
 import { deriveStyleProfile } from "@/lib/fashion/styling";
 import { ConcernGauge } from "@/components/ConcernGauge";
@@ -79,6 +80,60 @@ export function SkinReport({ profile }: { profile: SkinProfile }) {
             ))}
           </div>
         </div>
+
+        {/* Personal colour analysis — the bridge to the fitting room. */}
+        {profile.tone && (
+          <div className="mt-8 overflow-hidden rounded-2xl border border-stone-200 bg-gradient-to-br from-stone-50 to-white p-5">
+            <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-stone-400">
+              <Palette className="h-4 w-4 text-fuchsia-500" /> Your colour season
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-4">
+              <span
+                className="h-14 w-14 shrink-0 rounded-2xl border border-stone-200 shadow-inner"
+                style={{ background: profile.tone.hex }}
+                title={`Measured skin tone ${profile.tone.hex}`}
+              />
+              <div className="flex-1">
+                <div className="flex flex-wrap items-baseline gap-x-2">
+                  <h4 className="text-xl font-semibold text-stone-900">
+                    {profile.tone.seasonLabel}
+                  </h4>
+                  <span className="text-sm text-stone-500">
+                    {UNDERTONE_LABEL[profile.tone.undertone]} undertone ·{" "}
+                    {DEPTH_LABEL[profile.tone.depth]} · ITA° {profile.tone.ita}
+                  </span>
+                </div>
+                <p className="mt-0.5 text-sm text-stone-600">
+                  {profile.tone.description}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-stone-400">
+                Colours made for you
+              </p>
+              <div className="mt-2 flex flex-wrap gap-3">
+                {profile.tone.palette.map((c) => (
+                  <div key={c.hex} className="flex flex-col items-center gap-1">
+                    <span
+                      className="h-9 w-9 rounded-full border border-stone-200"
+                      style={{ background: c.hex }}
+                      title={c.name}
+                    />
+                    <span className="text-[10px] capitalize text-stone-500">
+                      {c.name}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <p className="mt-3 text-[11px] text-stone-400">
+              Skin tone measured from your photo (CIELAB · ITA°). Try these
+              colours on in the fitting room below.
+            </p>
+          </div>
+        )}
 
         {/* Focus areas */}
         <div className="mt-8 grid gap-3 sm:grid-cols-3">
@@ -161,8 +216,8 @@ export function SkinReport({ profile }: { profile: SkinProfile }) {
               See the fitting room, styled to your skin
             </h3>
             <p className="text-sm text-white/70">
-              {style.rednessElevated
-                ? `Your redness score (${style.rednessScore}/100) means cooler tones will flatter you — we've ordered the collection to match.`
+              {style.hasTone
+                ? `Your skin tone reads ${style.undertone} (${style.seasonLabel}) — we've ordered the collection to your palette so you can try your best colours on your own photo.`
                 : `We'll match garment colours to your complexion and let you try them on your own photo.`}
             </p>
           </div>

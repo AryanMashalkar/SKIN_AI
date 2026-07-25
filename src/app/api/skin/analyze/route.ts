@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { hasApiKey, runSkinAnalysis } from "@/lib/perfectcorp";
 import { normalizeApiResult, type SkinProfile } from "@/lib/skin";
+import { sampleSkinTone } from "@/lib/skinTone";
 import { mockSkinProfile } from "@/lib/mock";
 
 export const runtime = "nodejs";
@@ -23,41 +24,61 @@ export async function POST(request: NextRequest) {
     // no/invalid form body
   }
 
-  // No API key configured -> deterministic mock so the storefront is always
-  // demoable. This is the expected path until PERFECTCORP_API_KEY is set.
+  // Read the bytes once (used for both the skin analysis and the personal-
+  // colour sampling). The tone analysis runs on the user's real selfie even
+  // when the concern scores are mocked, so the colour story is always live.
+  let bytes: Uint8Array | null = null;
+  if (file) {
+    try {
+      bytes = new Uint8Array(await file.arrayBuffer());
+    } catch {
+      /* leave bytes null */
+    }
+  }
+
+  async function withTone(profile: SkinProfile): Promise<SkinProfile> {
+    if (bytes) {
+      try {
+        profile.tone = await sampleSkinTone(bytes);
+        return profile;
+      } catch {
+        /* fall through to synthetic tone */
+      }
+    }
+    return profile;
+  }
+
+  // No API key configured -> mock concern scores, but still sample the REAL
+  // skin tone from the uploaded photo so the personal-colour flow works.
   if (!hasApiKey()) {
     return json({
-      profile: mockSkinProfile(),
+      profile: await withTone(mockSkinProfile()),
       source: "mock",
-      note: "PERFECTCORP_API_KEY not set — returning simulated analysis.",
+      note: "PERFECTCORP_API_KEY not set — simulated concern scores; skin tone is measured from your photo.",
     });
   }
 
-  if (!file) {
+  if (!file || !bytes) {
     return json(
-      {
-        profile: mockSkinProfile(),
-        source: "mock",
-        note: "No image received.",
-      },
+      { profile: mockSkinProfile(), source: "mock", note: "No image received." },
       400,
     );
   }
 
   try {
-    const bytes = new Uint8Array(await file.arrayBuffer());
     const contentType = file.type || "image/jpeg";
     const fileName = file.name || "scan.jpg";
     const raw = await runSkinAnalysis(bytes, fileName, contentType);
-    const profile = normalizeApiResult(raw);
+    const profile = await withTone(normalizeApiResult(raw));
     return json({ profile, source: "perfectcorp" });
   } catch (err) {
-    // Live call failed — never break the demo, fall back to a mock result.
+    // Live call failed — never break the demo, fall back to a mock result but
+    // keep the real sampled tone.
     const message = err instanceof Error ? err.message : "unknown error";
     return json({
-      profile: mockSkinProfile(),
+      profile: await withTone(mockSkinProfile()),
       source: "mock",
-      note: `Live analysis failed (${message}) — showing simulated result.`,
+      note: `Live analysis failed (${message}) — showing simulated scores; skin tone measured from your photo.`,
     });
   }
 }
