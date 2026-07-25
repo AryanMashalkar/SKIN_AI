@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { Product } from "@/lib/products";
 import type { MatchResult } from "@/lib/matching";
 import { useStore } from "@/lib/store";
+import { ProductImage } from "@/components/ProductImage";
 
 interface Props {
   product: Product;
@@ -32,7 +33,7 @@ export function ProductCard({ product, match, rank }: Props) {
           background: `linear-gradient(135deg, ${product.accent[0]}22, ${product.accent[1]}33)`,
         }}
       >
-        <span className="text-5xl drop-shadow-sm">{product.emoji}</span>
+        <ProductImage product={product} className="h-32 w-auto drop-shadow-sm" />
         {showMatch && (
           <div className="absolute left-3 top-3 flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-violet-700 shadow-sm backdrop-blur">
             {rank === 0 ? "★ Top match" : `${match!.score}% match`}

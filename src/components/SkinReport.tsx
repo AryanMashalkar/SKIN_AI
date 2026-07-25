@@ -14,6 +14,7 @@ import { UNDERTONE_LABEL, DEPTH_LABEL } from "@/lib/color";
 import { heroPick } from "@/lib/matching";
 import { deriveStyleProfile } from "@/lib/fashion/styling";
 import { ConcernGauge } from "@/components/ConcernGauge";
+import { ProductImage } from "@/components/ProductImage";
 import { useStore } from "@/lib/store";
 
 export function SkinReport({ profile }: { profile: SkinProfile }) {
@@ -171,10 +172,10 @@ export function SkinReport({ profile }: { profile: SkinProfile }) {
         {hero && (
           <div className="mt-6 flex flex-col items-start gap-4 rounded-2xl bg-gradient-to-br from-violet-600 to-fuchsia-600 p-5 text-white sm:flex-row sm:items-center">
             <span
-              className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl text-4xl"
+              className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl"
               style={{ background: "rgba(255,255,255,0.15)" }}
             >
-              {hero.product.emoji}
+              <ProductImage product={hero.product} className="h-12 w-auto" />
             </span>
             <div className="flex-1">
               <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-white/80">

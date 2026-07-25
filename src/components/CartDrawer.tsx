@@ -4,6 +4,7 @@ import { useState } from "react";
 import { X, Minus, Plus, Trash2, ShoppingBag, CheckCircle2, Lock } from "lucide-react";
 import { cartTotal, useStore } from "@/lib/store";
 import { useHydrated } from "@/lib/useHydrated";
+import { ProductImage } from "@/components/ProductImage";
 
 type View = "cart" | "checkout" | "done";
 
@@ -93,12 +94,12 @@ export function CartDrawer() {
                   className="flex gap-3 rounded-2xl border border-stone-100 p-3"
                 >
                   <span
-                    className="grid h-16 w-16 shrink-0 place-items-center rounded-xl text-3xl"
+                    className="grid h-16 w-16 shrink-0 place-items-center rounded-xl"
                     style={{
                       background: `linear-gradient(135deg, ${line.product.accent[0]}22, ${line.product.accent[1]}33)`,
                     }}
                   >
-                    {line.product.emoji}
+                    <ProductImage product={line.product} className="h-12 w-auto" />
                   </span>
                   <div className="flex flex-1 flex-col">
                     <div className="flex items-start justify-between gap-2">
