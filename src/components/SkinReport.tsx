@@ -31,7 +31,7 @@ export function SkinReport({ profile }: { profile: SkinProfile }) {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-2xl font-semibold tracking-tight text-stone-900">
+              <h2 className="font-serif text-3xl font-medium tracking-tight text-stone-900">
                 Your Skin Report
               </h2>
               {profile.demo && (

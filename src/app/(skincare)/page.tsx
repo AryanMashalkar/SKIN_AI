@@ -9,9 +9,9 @@ export default function Home() {
       <Hero />
 
       {/* How it works */}
-      <section id="how" className="border-y border-stone-200 bg-white">
+      <section id="how" className="border-y border-stone-300/50 bg-white/40">
         <div className="mx-auto max-w-6xl px-5 py-14">
-          <h2 className="text-center text-2xl font-semibold tracking-tight text-stone-900">
+          <h2 className="text-center font-serif text-3xl font-medium tracking-tight text-stone-900">
             From selfie to shelf in three steps
           </h2>
           <div className="mt-10 grid gap-6 sm:grid-cols-3">
@@ -19,7 +19,7 @@ export default function Home() {
               {
                 icon: ScanFace,
                 title: "1 · Scan",
-                body: "Snap or upload a selfie. Perfect Corp's clinical AI scores 11 skin concerns and estimates your skin age.",
+                body: "Snap or upload a selfie. Perfect Corp's clinical AI scores 11 skin concerns and reads your colour season.",
               },
               {
                 icon: Sparkles,
@@ -34,9 +34,9 @@ export default function Home() {
             ].map((step) => (
               <div
                 key={step.title}
-                className="rounded-2xl border border-stone-100 bg-stone-50/50 p-6"
+                className="rounded-2xl border border-stone-200/70 bg-white/70 p-6"
               >
-                <span className="grid h-11 w-11 place-items-center rounded-xl bg-white text-violet-600 shadow-sm">
+                <span className="grid h-11 w-11 place-items-center rounded-xl bg-[#f4f0e6] text-[#b5451f] shadow-sm">
                   <step.icon className="h-5 w-5" />
                 </span>
                 <h3 className="mt-4 font-semibold text-stone-900">

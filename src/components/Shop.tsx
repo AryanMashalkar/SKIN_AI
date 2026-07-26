@@ -64,7 +64,7 @@ export function Shop() {
       <div id="shop" className="scroll-mt-20">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-semibold tracking-tight text-stone-900">
+            <h2 className="font-serif text-3xl font-medium tracking-tight text-stone-900">
               {activeProfile ? "Matched to your skin" : "The shelf"}
             </h2>
             <p className="mt-1 text-sm text-stone-500">
