@@ -21,6 +21,8 @@ export interface Processed {
   height: number;
   /** Representative skin colour hex sampled from the face region, or null. */
   skinHex: string | null;
+  /** False when few skin-like pixels were found (poor light / occlusion). */
+  skinConfident: boolean;
 }
 
 /** Is a pixel plausibly facial skin? Broad across skin depths; rejects
@@ -37,12 +39,13 @@ function isSkinPixel(r: number, g: number, b: number): boolean {
 }
 
 /** Samples a representative skin colour from the central face region of a
- *  drawn canvas. Returns a hex string, or null if too few skin pixels. */
+ *  drawn canvas. Returns { hex, ratio } where ratio is the fraction of the
+ *  window that read as skin (a confidence signal), or null if too few. */
 function sampleSkinHex(
   ctx: CanvasRenderingContext2D,
   w: number,
   h: number,
-): string | null {
+): { hex: string; ratio: number } | null {
   // Central window biased slightly above middle (cheeks/forehead).
   const cx = Math.round(w * 0.25);
   const cy = Math.round(h * 0.22);
@@ -59,6 +62,7 @@ function sampleSkinHex(
   let gs = 0;
   let bs = 0;
   let n = 0;
+  const total = data.length / 4;
   for (let i = 0; i < data.length; i += 4) {
     const r = data[i];
     const g = data[i + 1];
@@ -74,7 +78,10 @@ function sampleSkinHex(
 
   const to2 = (v: number) =>
     Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0");
-  return `#${to2(rs / n)}${to2(gs / n)}${to2(bs / n)}`;
+  return {
+    hex: `#${to2(rs / n)}${to2(gs / n)}${to2(bs / n)}`,
+    ratio: n / total,
+  };
 }
 
 export async function preprocessImage(file: File): Promise<Processed> {
@@ -122,12 +129,16 @@ export async function preprocessImage(file: File): Promise<Processed> {
   );
   if (!blob) throw new Error("Failed to encode image");
 
+  const skin = sampleSkinHex(ctx, outW, outH);
   return {
     blob,
     previewUrl: canvas.toDataURL("image/jpeg", 0.8),
     width: outW,
     height: outH,
-    skinHex: sampleSkinHex(ctx, outW, outH),
+    skinHex: skin?.hex ?? null,
+    // Below ~15% skin coverage in the face window suggests poor lighting,
+    // occlusion, or the face not filling the frame.
+    skinConfident: skin ? skin.ratio >= 0.15 : false,
   };
 }
 

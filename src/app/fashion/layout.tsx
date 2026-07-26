@@ -32,6 +32,9 @@ export default function FashionLayout({
             </span>
           </p>
         </div>
+        <div className="mx-auto max-w-6xl px-5 pb-6 text-center text-xs text-white/25">
+          Demo catalog — garment images are placeholders for demonstration only.
+        </div>
       </footer>
     </div>
   );

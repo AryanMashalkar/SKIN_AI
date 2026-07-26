@@ -119,6 +119,7 @@ export function FashionCart() {
                       <div className="flex items-center gap-1 rounded-full border border-white/15">
                         <button
                           onClick={() => setQty(line.garment.id, line.size, line.qty - 1)}
+                          aria-label="Decrease quantity"
                           className="grid h-7 w-7 place-items-center rounded-full text-white/60 hover:bg-white/10"
                         >
                           <Minus className="h-3.5 w-3.5" />
@@ -126,6 +127,7 @@ export function FashionCart() {
                         <span className="w-5 text-center text-sm font-medium">{line.qty}</span>
                         <button
                           onClick={() => setQty(line.garment.id, line.size, line.qty + 1)}
+                          aria-label="Increase quantity"
                           className="grid h-7 w-7 place-items-center rounded-full text-white/60 hover:bg-white/10"
                         >
                           <Plus className="h-3.5 w-3.5" />

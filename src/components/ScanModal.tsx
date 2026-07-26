@@ -34,6 +34,7 @@ export function ScanModal() {
   const [preview, setPreview] = useState<string | null>(null);
   const [blob, setBlob] = useState<Blob | null>(null);
   const [skinHex, setSkinHex] = useState<string | null>(null);
+  const [skinConfident, setSkinConfident] = useState(true);
   const [error, setError] = useState<string>("");
   const [step, setStep] = useState(0);
 
@@ -75,6 +76,7 @@ export function ScanModal() {
       setPreview(processed.previewUrl);
       setBlob(processed.blob);
       setSkinHex(processed.skinHex);
+      setSkinConfident(processed.skinConfident);
       setPhase("preview");
     } catch {
       setError("We couldn't read that image. Try a clear, front-facing photo.");
@@ -124,6 +126,7 @@ export function ScanModal() {
       const form = new FormData();
       form.append("image", new File([blob], "scan.jpg", { type: "image/jpeg" }));
       if (skinHex) form.append("skinHex", skinHex);
+      form.append("skinConfident", String(skinConfident));
       const res = await fetch("/api/skin/analyze", {
         method: "POST",
         body: form,
@@ -159,6 +162,7 @@ export function ScanModal() {
           </div>
           <button
             onClick={close}
+            aria-label="Close skin scan"
             className="grid h-8 w-8 place-items-center rounded-full text-stone-400 hover:bg-stone-100"
           >
             <X className="h-4 w-4" />

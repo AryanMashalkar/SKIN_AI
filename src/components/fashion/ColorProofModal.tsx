@@ -114,6 +114,7 @@ export function ColorProofModal() {
       <div className="relative z-10 w-full max-w-3xl animate-float-in overflow-hidden rounded-3xl bg-neutral-900 text-white shadow-2xl">
         <button
           onClick={close}
+          aria-label="Close proof"
           className="absolute right-3 top-3 z-20 grid h-9 w-9 place-items-center rounded-full bg-black/40 text-white/70 hover:bg-black/60"
         >
           <X className="h-4 w-4" />

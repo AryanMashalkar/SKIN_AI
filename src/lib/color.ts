@@ -41,6 +41,8 @@ export interface SkinTone {
   palette: PaletteColor[]; // colours that flatter this tone
   headline: string;
   description: string;
+  /** True when the underlying skin-colour sample was low-confidence. */
+  lowConfidence?: boolean;
 }
 
 export interface PaletteColor {

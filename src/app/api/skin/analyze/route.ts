@@ -17,12 +17,14 @@ interface AnalyzeResponse {
 export async function POST(request: NextRequest) {
   let file: File | null = null;
   let skinHex: string | null = null;
+  let skinConfident = true;
   try {
     const form = await request.formData();
     const value = form.get("image");
     if (value instanceof File) file = value;
     const hex = form.get("skinHex");
     if (typeof hex === "string" && /^#[0-9a-fA-F]{6}$/.test(hex)) skinHex = hex;
+    if (form.get("skinConfident") === "false") skinConfident = false;
   } catch {
     // no/invalid form body
   }
@@ -33,7 +35,7 @@ export async function POST(request: NextRequest) {
   function withTone(profile: SkinProfile): SkinProfile {
     if (skinHex) {
       try {
-        profile.tone = analyzeSkinTone(skinHex);
+        profile.tone = { ...analyzeSkinTone(skinHex), lowConfidence: !skinConfident };
       } catch {
         /* tone is optional */
       }

@@ -142,6 +142,7 @@ export function TryOnModal() {
       <div className="relative z-10 grid w-full max-w-3xl animate-float-in grid-cols-1 overflow-hidden rounded-3xl bg-neutral-900 text-white shadow-2xl md:grid-cols-2">
         <button
           onClick={close}
+          aria-label="Close try-on"
           className="absolute right-3 top-3 z-20 grid h-9 w-9 place-items-center rounded-full bg-black/40 text-white/70 hover:bg-black/60"
         >
           <X className="h-4 w-4" />
@@ -308,6 +309,10 @@ export function TryOnModal() {
                   </button>
                 ))}
               </div>
+              <p className="mt-2 text-[11px] leading-snug text-white/40">
+                The AI fits the garment to your body — size is for your order, so
+                the preview looks the same across sizes.
+              </p>
             </div>
 
             <button

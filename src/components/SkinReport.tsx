@@ -129,6 +129,42 @@ export function SkinReport({ profile }: { profile: SkinProfile }) {
                 ))}
               </div>
             </div>
+
+            {profile.tone.lowConfidence && (
+              <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-[11px] text-amber-700">
+                Lower confidence — your lighting looked uneven or your face
+                didn&apos;t fill the frame. Rescan in brighter, even light for a
+                sharper colour read.
+              </p>
+            )}
+
+            {/* Why this season — the explainable science. */}
+            <details className="mt-3 rounded-lg border border-stone-200 bg-white/60 px-3 py-2 text-xs text-stone-600">
+              <summary className="cursor-pointer font-medium text-stone-700">
+                Why {profile.tone.seasonLabel}? See the math
+              </summary>
+              <div className="mt-2 space-y-1 text-stone-500">
+                <p>
+                  Measured skin colour{" "}
+                  <span
+                    className="inline-block h-3 w-3 translate-y-0.5 rounded-sm border border-stone-300"
+                    style={{ background: profile.tone.hex }}
+                  />{" "}
+                  <code className="text-stone-600">{profile.tone.hex}</code> →
+                  CIELAB (L* {profile.tone.lab.L.toFixed(0)}, a*{" "}
+                  {profile.tone.lab.a.toFixed(1)}, b* {profile.tone.lab.b.toFixed(1)}).
+                </p>
+                <p>
+                  <strong>ITA° {profile.tone.ita}</strong> → {DEPTH_LABEL[profile.tone.depth].toLowerCase()} depth.
+                  b*−a* gap → <strong>{UNDERTONE_LABEL[profile.tone.undertone].toLowerCase()}</strong> undertone.
+                  Chroma {profile.tone.chroma} → clarity.
+                </p>
+                <p>
+                  Undertone + depth + clarity map onto the 12-season system →{" "}
+                  <strong>{profile.tone.seasonLabel}</strong>.
+                </p>
+              </div>
+            </details>
             <p className="mt-3 text-[11px] text-stone-400">
               Skin tone measured from your photo (CIELAB · ITA°). Try these
               colours on in the fitting room below.
