@@ -12,6 +12,8 @@ export interface CartLine {
 
 interface StoreState {
   profile: SkinProfile | null;
+  /** The scan before the current one, for progress comparison. */
+  previousProfile: SkinProfile | null;
   cart: CartLine[];
   cartOpen: boolean;
   scanOpen: boolean;
@@ -34,12 +36,20 @@ export const useStore = create<StoreState>()(
   persist(
     (set) => ({
       profile: null,
+      previousProfile: null,
       cart: [],
       cartOpen: false,
       scanOpen: false,
 
-      setProfile: (p) => set({ profile: p }),
-      clearProfile: () => set({ profile: null }),
+      // A new scan pushes the old one into `previousProfile` so the report can
+      // show progress. Demo/simulated scans never become a baseline.
+      setProfile: (p) =>
+        set((s) => ({
+          profile: p,
+          previousProfile:
+            p && s.profile && !s.profile.demo ? s.profile : s.previousProfile,
+        })),
+      clearProfile: () => set({ profile: null, previousProfile: null }),
 
       addToCart: (product, qty = 1) =>
         set((s) => {
@@ -74,7 +84,11 @@ export const useStore = create<StoreState>()(
     }),
     {
       name: "derma-store",
-      partialize: (s) => ({ profile: s.profile, cart: s.cart }),
+      partialize: (s) => ({
+        profile: s.profile,
+        previousProfile: s.previousProfile,
+        cart: s.cart,
+      }),
     },
   ),
 );

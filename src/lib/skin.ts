@@ -189,6 +189,67 @@ function clamp(n: number): number {
   return Math.max(0, Math.min(100, Math.round(n)));
 }
 
+// ---- recency + progress ---------------------------------------------------
+
+/** Whole days since a profile was captured. */
+export function daysSince(profile: SkinProfile): number {
+  const then = new Date(profile.capturedAt).getTime();
+  if (Number.isNaN(then)) return 0;
+  return Math.max(0, Math.floor((Date.now() - then) / 86_400_000));
+}
+
+/** Friendly relative label, e.g. "today", "3 days ago", "2 weeks ago". */
+export function lastScannedLabel(profile: SkinProfile): string {
+  const d = daysSince(profile);
+  if (d === 0) return "today";
+  if (d === 1) return "yesterday";
+  if (d < 14) return `${d} days ago`;
+  if (d < 60) return `${Math.floor(d / 7)} weeks ago`;
+  return `${Math.floor(d / 30)} months ago`;
+}
+
+/** Skin renews on roughly a 4-week cycle — the point at which a rescan is
+ *  meaningful rather than noise. */
+export const RESCAN_AFTER_DAYS = 28;
+
+export function isRescanDue(profile: SkinProfile): boolean {
+  return daysSince(profile) >= RESCAN_AFTER_DAYS;
+}
+
+export function daysUntilRescan(profile: SkinProfile): number {
+  return Math.max(0, RESCAN_AFTER_DAYS - daysSince(profile));
+}
+
+export interface ConcernDelta {
+  key: ConcernKey;
+  from: number;
+  to: number;
+  delta: number; // positive = improved (higher score = healthier)
+}
+
+/** Per-concern change between two scans, biggest movement first. */
+export function progressBetween(
+  previous: SkinProfile,
+  current: SkinProfile,
+): ConcernDelta[] {
+  return ALL_CONCERNS.map((key) => {
+    const from = previous.scores[key];
+    const to = current.scores[key];
+    return { key, from, to, delta: to - from };
+  }).sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+}
+
+/** Concerns that moved enough to be worth reporting (noise floor ±3). */
+export function meaningfulDeltas(
+  previous: SkinProfile,
+  current: SkinProfile,
+  minChange = 3,
+): ConcernDelta[] {
+  return progressBetween(previous, current).filter(
+    (d) => Math.abs(d.delta) >= minChange,
+  );
+}
+
 // Shape of one entry in the Perfect Corp `results.output` array.
 interface OutputItem {
   type?: string;

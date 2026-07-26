@@ -1,7 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { RotateCcw, FlaskConical, Sparkles, Shirt, ArrowRight, Palette } from "lucide-react";
+import {
+  RotateCcw,
+  FlaskConical,
+  Sparkles,
+  Shirt,
+  ArrowRight,
+  Palette,
+  BadgeDollarSign,
+} from "lucide-react";
 import {
   ALL_CONCERNS,
   CONCERN_META,
@@ -11,17 +19,21 @@ import {
   type SkinProfile,
 } from "@/lib/skin";
 import { UNDERTONE_LABEL, DEPTH_LABEL } from "@/lib/color";
-import { heroPick } from "@/lib/matching";
+import { heroPick, bestValuePick } from "@/lib/matching";
 import { deriveStyleProfile } from "@/lib/fashion/styling";
 import { ConcernGauge } from "@/components/ConcernGauge";
 import { ProductImage } from "@/components/ProductImage";
+import { RoutineSection } from "@/components/RoutineSection";
+import { ProgressSection } from "@/components/ProgressSection";
 import { useStore } from "@/lib/store";
 
 export function SkinReport({ profile }: { profile: SkinProfile }) {
   const openScan = useStore((s) => s.openScan);
   const addToCart = useStore((s) => s.addToCart);
+  const previousProfile = useStore((s) => s.previousProfile);
   const focus = rankedConcerns(profile).slice(0, 3);
   const hero = heroPick(profile);
+  const value = bestValuePick(profile);
   const style = deriveStyleProfile(profile);
 
   return (
@@ -234,6 +246,52 @@ export function SkinReport({ profile }: { profile: SkinProfile }) {
             </div>
           </div>
         )}
+
+        {/* Best value for the #1 concern — the cheap workhorse, not just the
+            priciest formula. */}
+        {value && hero && value.product.id !== hero.product.id && (
+          <div className="mt-3 flex flex-wrap items-center gap-4 rounded-2xl border border-stone-200 bg-stone-50/60 p-4">
+            <span
+              className="grid h-12 w-12 shrink-0 place-items-center rounded-xl"
+              style={{
+                background: `linear-gradient(135deg, ${value.product.accent[0]}22, ${value.product.accent[1]}33)`,
+              }}
+            >
+              <ProductImage product={value.product} className="h-9 w-auto" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-emerald-600">
+                <BadgeDollarSign className="h-3.5 w-3.5" /> Best value for your
+                top concern
+              </p>
+              <p className="mt-0.5 font-semibold text-stone-900">
+                {value.product.name}
+              </p>
+              <p className="text-sm text-stone-500">{value.reason}</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-lg font-semibold text-stone-900">
+                ${value.product.price}
+              </span>
+              <button
+                onClick={() => addToCart(value.product)}
+                className="rounded-full bg-stone-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-stone-800"
+              >
+                Add to bag
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Your routine — the "what do I actually do" step. */}
+      <div className="mt-4">
+        <RoutineSection profile={profile} />
+      </div>
+
+      {/* Progress vs. the previous scan + rescan cadence. */}
+      <div className="mt-4">
+        <ProgressSection profile={profile} previous={previousProfile} />
       </div>
 
       {/* Skin-informed styling bridge — carries the scan into the fitting room. */}

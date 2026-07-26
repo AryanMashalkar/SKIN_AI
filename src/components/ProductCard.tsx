@@ -50,9 +50,23 @@ export function ProductCard({ product, match, rank }: Props) {
         </h3>
 
         {showMatch ? (
-          <p className="mt-1.5 text-sm font-medium text-violet-700">
-            {match!.reason}
-          </p>
+          <>
+            <p className="mt-1.5 text-sm font-medium text-violet-700">
+              {match!.reason}
+            </p>
+            {/* Evidence: the user's own scores behind this recommendation. */}
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {match!.evidence.slice(0, 3).map((e) => (
+                <span
+                  key={e.key}
+                  className="rounded-md bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-700"
+                  title={`Your ${e.label.toLowerCase()} score is ${e.score}/100 — lower means more support needed.`}
+                >
+                  Your {e.label.toLowerCase()}: {e.score}
+                </span>
+              ))}
+            </div>
+          </>
         ) : (
           <p className="mt-1.5 line-clamp-2 text-sm text-stone-500">
             {product.blurb}

@@ -2,9 +2,18 @@ import { PRODUCTS, type Product } from "@/lib/products";
 import {
   ALL_CONCERNS,
   CONCERN_META,
+  rankedConcerns,
   type ConcernKey,
   type SkinProfile,
 } from "@/lib/skin";
+
+/** Evidence for a recommendation: the user's actual score for a concern this
+ *  product targets. Lets the UI show proof, not just a conclusion. */
+export interface MatchEvidence {
+  key: ConcernKey;
+  label: string;
+  score: number;
+}
 
 export interface MatchResult {
   product: Product;
@@ -14,6 +23,8 @@ export interface MatchResult {
   addresses: ConcernKey[];
   // Human-readable reason for the recommendation.
   reason: string;
+  // The scores behind the reason, worst-first.
+  evidence: MatchEvidence[];
 }
 
 // A concern is "in need" below this score (higher score = healthier).
@@ -61,6 +72,11 @@ export function rankProducts(
       score,
       addresses: addressKeys,
       reason: buildReason(addressKeys),
+      evidence: addressKeys.map((key) => ({
+        key,
+        label: CONCERN_META[key].label,
+        score: profile.scores[key],
+      })),
     };
   });
 
@@ -86,30 +102,104 @@ export function heroPick(profile: SkinProfile): MatchResult | null {
   return ranked[0] ?? null;
 }
 
-/** Builds a simple AM/PM routine from the top matches. */
-export function buildRoutine(profile: SkinProfile): {
-  am: Product[];
-  pm: Product[];
-} {
-  const ranked = rankProducts(profile).map((r) => r.product);
-  const pick = (cats: string[]) =>
-    ranked.find((p) => cats.includes(p.category));
-
-  const cleanser = pick(["Cleanser"]);
-  const treatmentDay = ranked.find((p) =>
-    p.concerns.some((c) => ["radiance", "age_spot"].includes(c)),
+/**
+ * Best value for the user's #1 concern: among products that target it, the one
+ * with the best match-per-dollar. Surfaces the cheap workhorse instead of
+ * always pushing the most expensive formula.
+ */
+export function bestValuePick(profile: SkinProfile): MatchResult | null {
+  const top = rankedConcerns(profile)[0];
+  const candidates = rankProducts(profile).filter((r) =>
+    r.product.concerns.includes(top),
   );
-  const moisturizer = pick(["Moisturizer"]);
-  const spf = ranked.find((p) => p.category === "SPF");
-  const treatmentNight = ranked.find((p) =>
-    p.concerns.some((c) => ["wrinkle", "acne", "texture"].includes(c)),
+  if (candidates.length === 0) return null;
+  return candidates.reduce((best, r) =>
+    r.score / r.product.price > best.score / best.product.price ? r : best,
   );
+}
 
-  const dedupe = (arr: (Product | undefined)[]) =>
-    arr.filter((p, i, a): p is Product => !!p && a.indexOf(p) === i);
+export type RoutineTier = "starter" | "complete";
 
-  return {
-    am: dedupe([cleanser, treatmentDay, moisturizer, spf]),
-    pm: dedupe([cleanser, treatmentNight, moisturizer]),
-  };
+export interface RoutineStep {
+  slot: string; // "Cleanse", "Treat", "Moisturize", "Protect"
+  product: Product;
+  why: string;
+}
+
+export interface Routine {
+  am: RoutineStep[];
+  pm: RoutineStep[];
+  total: number;
+}
+
+/**
+ * Builds an ordered AM/PM routine from the user's top matches.
+ *
+ * Correct skincare order is thin→thick: cleanse, treat, moisturize, and SPF
+ * last in the morning. `starter` keeps only the essentials (cleanser +
+ * one treatment + moisturizer, plus SPF in the AM) to keep the basket small.
+ */
+export function buildRoutine(
+  profile: SkinProfile,
+  tier: RoutineTier = "complete",
+): Routine {
+  const ranked = rankProducts(profile);
+  const byCategory = (cats: string[]) =>
+    ranked.find((r) => cats.includes(r.product.category));
+  const byConcern = (keys: ConcernKey[], exclude?: Product) =>
+    ranked.find(
+      (r) =>
+        r.product !== exclude &&
+        !["Cleanser", "SPF", "Moisturizer"].includes(r.product.category) &&
+        r.product.concerns.some((c) => keys.includes(c)),
+    );
+
+  const cleanser = byCategory(["Cleanser"]);
+  const moisturizer = byCategory(["Moisturizer"]);
+  const spf = byCategory(["SPF"]);
+  // Daytime favours antioxidant/brightening; night favours renewal.
+  const dayTreat = byConcern(["radiance", "age_spot", "redness"]);
+  const nightTreat = byConcern(
+    ["wrinkle", "acne", "texture", "pore", "firmness"],
+    dayTreat?.product,
+  );
+  const eye = byCategory(["Eye Care"]);
+
+  const step = (slot: string, r?: MatchResult): RoutineStep | null =>
+    r ? { slot, product: r.product, why: r.reason } : null;
+
+  const amRaw = [
+    step("Cleanse", cleanser),
+    tier === "complete" ? step("Treat", dayTreat) : null,
+    step("Moisturize", moisturizer),
+    step("Protect", spf),
+  ];
+  const pmRaw = [
+    step("Cleanse", cleanser),
+    step("Treat", nightTreat ?? dayTreat),
+    tier === "complete" ? step("Eyes", eye) : null,
+    step("Moisturize", moisturizer),
+  ];
+
+  const compact = (steps: (RoutineStep | null)[]) =>
+    steps.filter((s): s is RoutineStep => s !== null);
+
+  const am = compact(amRaw);
+  const pm = compact(pmRaw);
+
+  // Unique products across both routines (cleanser/moisturizer are shared).
+  const unique = new Map<string, Product>();
+  [...am, ...pm].forEach((s) => unique.set(s.product.id, s.product));
+  const total = [...unique.values()].reduce((sum, p) => sum + p.price, 0);
+
+  return { am, pm, total };
+}
+
+/** The distinct products in a routine (for "add all to bag"). */
+export function routineProducts(routine: Routine): Product[] {
+  const unique = new Map<string, Product>();
+  [...routine.am, ...routine.pm].forEach((s) =>
+    unique.set(s.product.id, s.product),
+  );
+  return [...unique.values()];
 }

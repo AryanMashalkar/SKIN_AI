@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --experimental-strip-types scripts/color.test.mjs",
+    "test": "node --experimental-strip-types scripts/color.test.mjs && node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/domain.test.mjs",
     "probe": "node scripts/probe-skin.mjs"
   },
   "dependencies": {
