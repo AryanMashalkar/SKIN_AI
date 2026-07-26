@@ -1,80 +1,130 @@
-# Derma — AI Skincare, matched to your skin
+# Derma — your skin picks your products *and* your colours
 
-**Derma** is a consumer-ready skincare storefront where the shopping experience
-is driven by clinical AI skin analysis. A shopper scans their face, the
-[Perfect Corp **YouCam Skin Analysis API**](https://yce.perfectcorp.com/ai-api/products/skin-analysis-api)
-scores 11 dermatological concerns, and the entire catalog reorders and scores
-itself against their real skin — then they add their matched routine to the bag
-and check out.
+**Derma** is a personalized beauty storefront where one selfie drives everything.
+A shopper scans their face; the **Perfect Corp YouCam Skin Analysis API** scores
+11 dermatological concerns; a local colour-science engine reads their skin tone
+into a **personal colour season**; and both stores reorder around them — matched
+skincare **and** apparel they can try on their own photo in their most
+flattering colours.
 
-Built for the **YouCam API Skin AI & Apparel VTO Hackathon**.
+Built for the **YouCam API Skin AI & Apparel VTO Hackathon** — using **both**
+API families as one causal chain, not two demos in a trench coat.
+
+> **your skin → your concerns → matched skincare**
+> **your skin → your undertone → your colour season → apparel, worn on you**
 
 ---
 
-## Why this is different
+## Judge quick access
 
-Most skin-analysis demos stop at a report screen. Derma treats the API as what
-Perfect Corp actually sells it as — **a retail conversion engine**:
+| To see… | Go here |
+| --- | --- |
+| **Try it, zero setup** | **[showmeyourstyle.vercel.app](https://showmeyourstyle.vercel.app)** — Scan my skin → shop → open the fitting room |
+| **The money shot** | On `/fashion`, after a scan: **"Prove it on your photo"** → the same garment in your colour vs. a clashing colour, rendered on you |
+| **Both APIs, wired** | `src/lib/perfectcorp.ts` (Skin Analysis S2S) + `src/lib/fashion/vto.ts` (Apparel VTO S2S) |
+| **The science is real** | `npm test` — 18 assertions on the CIELAB / ITA° / season engine (`src/lib/color.ts`) |
+| **It runs on your machine** | `npm install && npm run dev` — works with zero keys (labelled demo mode) |
 
-- **Scan → Score → Shop.** Analysis isn't a gimmick bolted onto the side; it is
-  the thing that ranks the store.
-- **Every recommendation is explainable.** Each product's match score traces
-  directly back to your concern deficits (see `src/lib/matching.ts`).
-- **It looks like a store a Perfect Corp client would actually ship** — cart,
-  mock checkout, filters, the works.
+---
 
-## How the Perfect Corp integration works
+## The four flows
 
-The full server-side flow lives in `src/lib/perfectcorp.ts` (S2S API v2.1):
+1. **Scan** (`/` → *Scan my skin*): a selfie runs through YouCam Skin Analysis →
+   11 concern scores, skin type, skin age, overall health. In-app photo tips +
+   consent keep the capture clean.
+2. **Shop your skin** (`/`): every product is scored against your concern
+   deficits and reordered, worst-concern-first. Every match is explainable
+   (`src/lib/matching.ts`).
+3. **Know your colours** (`/` report): your skin tone is measured and placed in a
+   **12-season** personal-colour system with its flattering palette.
+4. **Wear your colours** (`/fashion`): the apparel collection is ordered to your
+   season, you try garments on **your own photo** via Apparel VTO, and the
+   **proof shot** renders one garment in your colour vs. a clashing colour,
+   side by side.
 
-| Step | Endpoint | Purpose |
-| ---- | -------- | ------- |
-| 1 | `POST /s2s/v2.1/file/skin-analysis` | Register the image, get a presigned upload URL + `file_id` |
-| 2 | `PUT <presigned url>` | Upload the raw JPEG bytes (no auth header) |
-| 3 | `POST /s2s/v2.1/task/skin-analysis` | Start analysis for the SD-tier `dst_actions` |
-| 4 | `GET /s2s/v2.1/task/skin-analysis/{task_id}` | Poll until `success`, read scores |
+## How it uses the YouCam API (both families)
 
-Auth is `Authorization: Bearer <PERFECTCORP_API_KEY>`.
+| Step | YouCam API | What we do |
+| --- | --- | --- |
+| Read concerns | **Skin Analysis** (S2S v2.1) | `file → presigned PUT → task → poll`; parse the real `results.output[]` — 11 `ui_score`s + `skin_type` + `all` + `skin_age`. |
+| Read colouring | *(our colour engine)* | Sample the wearer's skin colour from the selfie → CIELAB → **ITA°** (depth), **undertone** (a\*–b\* plane), **12-season**. |
+| Try it on | **Apparel VTO** (S2S v2.0) | `POST /task/cloth { src_file_url, ref_file_url, garment_category }` → poll → rendered result on the user's photo. |
+| Prove it | **Apparel VTO** | Recolour one garment to a flattering vs. clashing shade and render **both** on the user — the side-by-side money shot. |
 
-Selfies are **preprocessed in the browser** (`src/lib/image.ts`) — center-cropped
-to a 3:4 portrait and re-encoded — to avoid the API's `error_src_face_too_small`
-and oversize rejections.
+Auth is `Authorization: Bearer <PERFECTCORP_API_KEY>`, **server-side only** — the
+key never reaches the browser.
 
-> **Graceful fallback:** if `PERFECTCORP_API_KEY` is unset (or a live call
-> fails mid-demo), the API route returns a realistic **simulated** profile so the
-> storefront is always presentable. The UI clearly labels demo data.
+## The colour engine (our IP)
 
-## Getting started
+The differentiator isn't the API call — it's the science in between
+(`src/lib/color.ts`, pure and unit-tested):
+
+- **CIELAB** conversion (D65) verified against known reference values.
+- **ITA°** (Individual Typology Angle) — the dermatology-standard skin-depth
+  metric — for depth (light / medium / deep).
+- **Undertone** from the a\*–b\* plane (golden-yellow vs pink-blue), robust across
+  skin depths.
+- A rule-based map onto the **12 seasons**, each with a wearable palette.
+
+Skin colour is sampled **in the browser** from the face region of the scan photo
+(`src/lib/image.ts`) and passed to the server as a hex — so there's no native
+image decoding on the serverless runtime. Run `npm test` to see the engine
+validated (18 assertions).
+
+## Engineering notes judges tend to ask about
+
+- **Both images for VTO are hosted for you.** Apparel VTO fetches images from
+  public URLs, so the uploaded photo (and recoloured garments) are pushed to
+  **Vercel Blob** in production, or served over a dev tunnel locally. The route
+  pre-flights both URLs and reports exactly which one is unreachable.
+- **Fail-safe everywhere.** No API key → simulated concern scores (real measured
+  tone). VTO unavailable → recoloured garment preview. A live failure never
+  breaks the demo; the UI labels demo data.
+- **Never medical.** Skin scores drive *cosmetic* product and *styling*
+  suggestions only — explicitly not medical or treatment advice.
+
+## Quickstart
 
 ```bash
 npm install
-cp .env.example .env.local   # add PERFECTCORP_API_KEY to hit the real API
-npm run dev
+cp .env.example .env.local   # add PERFECTCORP_API_KEY to hit the real APIs
+npm run dev                  # http://localhost:3000
+npm test                     # colour-engine assertions
 ```
 
-Open http://localhost:3000 and click **Scan my skin**.
+Camera/upload work with zero keys (demo mode). For live Apparel VTO locally you
+need a public tunnel (`PUBLIC_BASE_URL`); on Vercel, connect a **Blob** store.
 
 ## Tech
 
-- **Next.js 16** (App Router) + **TypeScript** + **Tailwind CSS v4**
-- **Zustand** for cart + skin-profile state (persisted to localStorage)
-- Perfect Corp YouCam Skin Analysis API (S2S v2.1)
+Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · Zustand
+(persisted) · Vercel Blob · deployed on Vercel. Perfect Corp YouCam **Skin
+Analysis** (S2S v2.1) + **Apparel VTO** (S2S v2.0).
 
 ## Project structure
 
 ```
 src/
   app/
-    page.tsx                    # Storefront home (hero, how-it-works, shop)
-    layout.tsx                  # Navbar + Cart + Scan modal shell
-    api/skin/analyze/route.ts   # Server route: runs analysis or mock fallback
+    (skincare)/page.tsx           # Skin scan + shop + colour report
+    fashion/page.tsx              # Apparel VTO fitting room, ordered to your season
+    api/skin/analyze/route.ts     # Skin Analysis (or mock) + attach measured tone
+    api/tryon/route.ts            # Apparel VTO; hosts photo + recoloured garments
   lib/
-    perfectcorp.ts              # ★ Perfect Corp S2S API client (server-only)
-    skin.ts                     # Concern model, severity, response normalizer
-    mock.ts                     # Simulated profile for keyless demos
-    products.ts                 # Catalog + concern tagging
-    matching.ts                 # Explainable product-ranking engine
-    image.ts                    # Client-side selfie preprocessing
-    store.ts                    # Zustand cart + profile store
-  components/                   # Navbar, Hero, Shop, ScanModal, SkinReport, …
+    perfectcorp.ts                # ★ Skin Analysis S2S client (server-only)
+    fashion/vto.ts                # ★ Apparel VTO S2S client (server-only)
+    color.ts                      # ★ CIELAB / ITA° / 12-season engine (tested)
+    image.ts                      # Selfie preprocessing + browser skin sampling
+    matching.ts                   # Explainable product ranking
+    fashion/styling.ts            # Garment ↔ season matching
+    fashion/recolor.ts            # Browser luminance-preserving garment recolour
+  components/                     # Scan, report, fitting room, colour-proof modal, …
+scripts/color.test.mjs            # Colour-engine test suite (npm test)
 ```
+
+## Credits & data
+
+Apparel VTO and Skin Analysis by **Perfect Corp · YouCam API**. Demo garment
+catalog images are placeholders for demonstration. Skincare product imagery is
+generated in-app (owned SVG). A skin scan is processed by Perfect Corp's API and
+is not stored by this app.
