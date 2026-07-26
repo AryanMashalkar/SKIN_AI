@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:live": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-tunnel.ps1",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
