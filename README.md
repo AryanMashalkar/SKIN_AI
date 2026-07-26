@@ -19,7 +19,7 @@ API families as one causal chain, not two demos in a trench coat.
 
 | To see… | Go here |
 | --- | --- |
-| **Try it, zero setup** | **[showmeyourstyle.vercel.app](https://showmeyourstyle.vercel.app)** — Scan my skin → shop → open the fitting room |
+| **Try it, zero setup** | **[skin-ai-lake.vercel.app](https://skin-ai-lake.vercel.app)** — Scan my skin → shop → open the fitting room |
 | **The money shot** | On `/fashion`, after a scan: **"Prove it on your photo"** → the same garment in your colour vs. a clashing colour, rendered on you |
 | **Both APIs, wired** | `src/lib/perfectcorp.ts` (Skin Analysis S2S) + `src/lib/fashion/vto.ts` (Apparel VTO S2S) |
 | **The science is real** | `npm test` — 18 assertions on the CIELAB / ITA° / season engine (`src/lib/color.ts`) |

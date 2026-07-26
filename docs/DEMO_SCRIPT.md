@@ -1,6 +1,6 @@
 # Demo video script — Derma (target 2:30–3:00)
 
-Record on a real phone against the live URL (`showmeyourstyle.vercel.app`) in
+Record on a real phone against the live URL (`skin-ai-lake.vercel.app`) in
 **bright, even light** (face a window). Use a real face and a real
 upper/full-body photo. Screen-record the phone; voice-over after if needed.
 
