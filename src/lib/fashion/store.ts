@@ -25,6 +25,7 @@ interface FashionState {
 
   tryOnFor: string | null; // garment id whose modal is open
   cartOpen: boolean;
+  proofOpen: boolean;
 
   setUserPhoto: (p: UserPhoto | null) => void;
   setResult: (garmentId: string, url: string) => void;
@@ -39,6 +40,8 @@ interface FashionState {
   closeTryOn: () => void;
   openCart: () => void;
   closeCart: () => void;
+  openProof: () => void;
+  closeProof: () => void;
 }
 
 export const useFashion = create<FashionState>()(
@@ -50,6 +53,7 @@ export const useFashion = create<FashionState>()(
       cart: [],
       tryOnFor: null,
       cartOpen: false,
+      proofOpen: false,
 
       setUserPhoto: (p) => set({ userPhoto: p }),
       setResult: (garmentId, url) =>
@@ -99,6 +103,8 @@ export const useFashion = create<FashionState>()(
       closeTryOn: () => set({ tryOnFor: null }),
       openCart: () => set({ cartOpen: true }),
       closeCart: () => set({ cartOpen: false }),
+      openProof: () => set({ proofOpen: true }),
+      closeProof: () => set({ proofOpen: false }),
     }),
     {
       name: "derma-fashion",

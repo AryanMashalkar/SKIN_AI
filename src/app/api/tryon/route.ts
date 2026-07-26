@@ -56,26 +56,32 @@ async function isReachable(url: string): Promise<boolean> {
 }
 
 export async function POST(req: NextRequest) {
-  let body: { userPhotoDataUrl?: string; garmentId?: string };
+  let body: {
+    userPhotoDataUrl?: string;
+    garmentId?: string;
+    garmentImageDataUrl?: string;
+  };
   try {
     body = await req.json();
   } catch {
     return json({ resultUrl: "", source: "mock", note: "Invalid body" }, 400);
   }
 
-  const { userPhotoDataUrl, garmentId } = body;
+  const { userPhotoDataUrl, garmentId, garmentImageDataUrl } = body;
   const garment = garmentId ? garmentById(garmentId) : undefined;
   if (!garment) {
     return json({ resultUrl: "", source: "mock", note: "Unknown garment" }, 400);
   }
 
   const base = publicBase(req);
-  const refUrl = `${base}${garment.image}`;
+  // Default: the static garment image. If the client sent a recoloured variant
+  // (proof-shot comparison), host that and use it as the garment instead.
+  let refUrl = `${base}${garment.image}`;
 
   const isPublic = /^https:\/\//.test(base) && !base.includes("localhost");
   if (!hasVtoKey() || !isPublic) {
     return json({
-      resultUrl: garment.image,
+      resultUrl: garmentImageDataUrl || garment.image,
       source: "mock",
       note: !hasVtoKey()
         ? "PERFECTCORP_API_KEY not set — showing garment preview."
@@ -87,11 +93,9 @@ export async function POST(req: NextRequest) {
     return json({ resultUrl: garment.image, source: "mock", note: "No photo" }, 400);
   }
 
-  // On a deployed host without a Blob store, the user photo can't be hosted
-  // publicly -> Perfect Corp gets error_download_image. Fail loudly & clearly.
   if (onVercel() && !hasBlob()) {
     return json({
-      resultUrl: garment.image,
+      resultUrl: garmentImageDataUrl || garment.image,
       source: "mock",
       note: "Virtual try-on needs a Vercel Blob store connected (Storage → Blob) to host your photo. Showing garment preview.",
     });
@@ -99,9 +103,10 @@ export async function POST(req: NextRequest) {
 
   try {
     const srcUrl = await hostUserPhoto(userPhotoDataUrl, base);
+    if (garmentImageDataUrl) {
+      refUrl = await hostUserPhoto(garmentImageDataUrl, base);
+    }
 
-    // Pre-flight: verify BOTH images are reachable before spending a unit, and
-    // report precisely which one is not.
     const [srcOk, refOk] = await Promise.all([
       isReachable(srcUrl),
       isReachable(refUrl),
@@ -111,7 +116,7 @@ export async function POST(req: NextRequest) {
         .filter(Boolean)
         .join(" and ");
       return json({
-        resultUrl: garment.image,
+        resultUrl: garmentImageDataUrl || garment.image,
         source: "mock",
         note: `Couldn't reach ${which} at a public URL (base: ${base}) — showing garment preview.`,
       });
@@ -127,7 +132,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     const message = err instanceof Error ? err.message : "unknown error";
     return json({
-      resultUrl: garment.image,
+      resultUrl: garmentImageDataUrl || garment.image,
       source: "mock",
       note: `Live try-on failed (${message}) — showing garment preview.`,
     });

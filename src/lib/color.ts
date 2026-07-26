@@ -392,3 +392,28 @@ export const DEPTH_LABEL: Record<Depth, string> = {
 export function seasonDef(season: Season): SeasonDef {
   return SEASONS[season];
 }
+
+// ---- proof-shot colours ---------------------------------------------------
+
+export interface ProofColors {
+  flattering: PaletteColor; // a hero colour from the user's own palette
+  clashing: PaletteColor; // a colour of the opposite temperature that fights it
+}
+
+// A clashing colour of the opposite temperature, by the user's undertone.
+const CLASH_FOR: Record<Undertone, PaletteColor> = {
+  warm: { hex: "#4f6d9e", name: "cool slate blue" }, // cool clashes warm skin
+  cool: { hex: "#c8772e", name: "warm ochre" }, // warm clashes cool skin
+  neutral: { hex: "#9a9a58", name: "muddy olive" }, // muted clash
+};
+
+/**
+ * Picks a flattering colour (from the shopper's season palette) and a clashing
+ * colour (opposite temperature) for the side-by-side "prove it" comparison.
+ */
+export function proofColors(tone: SkinTone): ProofColors {
+  // A saturated, mid-depth hero from their palette reads best on a garment.
+  const flattering = tone.palette[0] ?? { hex: "#3a6ea5", name: "blue" };
+  return { flattering, clashing: CLASH_FOR[tone.undertone] };
+}
+

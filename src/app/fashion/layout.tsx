@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { FashionNavbar } from "@/components/fashion/FashionNavbar";
 import { FashionCart } from "@/components/fashion/FashionCart";
 import { TryOnModal } from "@/components/fashion/TryOnModal";
+import { ColorProofModal } from "@/components/fashion/ColorProofModal";
 
 export const metadata: Metadata = {
   title: "MIROIR — AI Fashion Fitting Room",
@@ -20,6 +21,7 @@ export default function FashionLayout({
       <div className="flex-1">{children}</div>
       <FashionCart />
       <TryOnModal />
+      <ColorProofModal />
       <footer className="border-t border-white/10">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-5 py-8 text-sm text-white/40 sm:flex-row">
           <p>© {new Date().getFullYear()} MIROIR — a Derma fitting room.</p>

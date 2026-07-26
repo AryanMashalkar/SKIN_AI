@@ -17,6 +17,7 @@ import {
 export default function FashionHome() {
   const [cat, setCat] = useState<string>("All");
   const openTryOn = useFashion((s) => s.openTryOn);
+  const openProof = useFashion((s) => s.openProof);
   const profile = useStore((s) => s.profile);
   const hydrated = useHydrated();
 
@@ -154,6 +155,15 @@ export default function FashionHome() {
                 ? `Based on your measured skin tone · ${styleProfile.seasonLabel} · ${styleProfile.undertone} undertone. A styling suggestion, not medical advice.`
                 : "Based on your Perfect Corp skin scan. A styling suggestion, not medical advice."}
             </p>
+
+            {styleProfile.hasTone && (
+              <button
+                onClick={openProof}
+                className="mt-4 flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-neutral-900 transition hover:bg-white/90"
+              >
+                <Sparkles className="h-4 w-4" /> Prove it on your photo
+              </button>
+            )}
           </div>
         ) : (
           <Link
