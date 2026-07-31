@@ -1,4 +1,4 @@
-﻿# Derma â€” your skin picks your products *and* your colours
+﻿# Derma ai” your skin picks your products *and* your colours
 
 **Derma** is a personalized beauty storefront where one selfie drives everything.
 A shopper scans their face; the **Perfect Corp YouCam Skin Analysis API** scores
