@@ -29,7 +29,7 @@ import { useStore } from "@/lib/store";
 
 export function SkinReport({ profile }: { profile: SkinProfile }) {
   const openScan = useStore((s) => s.openScan);
-  const addToCart = useStore((s) => s.addToCart);
+  const addToCart = useStore((s) => s.addProduct);
   const previousProfile = useStore((s) => s.previousProfile);
   const focus = rankedConcerns(profile).slice(0, 3);
   const hero = heroPick(profile);
@@ -98,7 +98,7 @@ export function SkinReport({ profile }: { profile: SkinProfile }) {
         {profile.tone && (
           <div className="mt-8 overflow-hidden rounded-2xl border border-stone-200 bg-gradient-to-br from-stone-50 to-white p-5">
             <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-stone-400">
-              <Palette className="h-4 w-4 text-fuchsia-500" /> Your colour season
+              <Palette className="h-4 w-4 text-[#b5451f]" /> Your colour season
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-4">
               <span
@@ -150,6 +150,10 @@ export function SkinReport({ profile }: { profile: SkinProfile }) {
               </p>
             )}
 
+            {profile.tone.analysis && (
+              <ConfidenceBar analysis={profile.tone.analysis} />
+            )}
+
             {/* Why this season — the explainable science. */}
             <details className="mt-3 rounded-lg border border-stone-200 bg-white/60 px-3 py-2 text-xs text-stone-600">
               <summary className="cursor-pointer font-medium text-stone-700">
@@ -171,10 +175,26 @@ export function SkinReport({ profile }: { profile: SkinProfile }) {
                   b*−a* gap → <strong>{UNDERTONE_LABEL[profile.tone.undertone].toLowerCase()}</strong> undertone.
                   Chroma {profile.tone.chroma} → clarity.
                 </p>
-                <p>
-                  Undertone + depth + clarity map onto the 12-season system →{" "}
-                  <strong>{profile.tone.seasonLabel}</strong>.
-                </p>
+
+                {profile.tone.analysis ? (
+                  <>
+                    <p className="pt-1">
+                      Season is decided on three axes — <em>hue</em>,{" "}
+                      <em>value</em> and <em>chroma</em> — and named for
+                      whichever dominates:
+                    </p>
+                    <ul className="ml-1 space-y-0.5">
+                      {profile.tone.analysis.reasoning.map((line) => (
+                        <li key={line}>• {line}</li>
+                      ))}
+                    </ul>
+                  </>
+                ) : (
+                  <p>
+                    Undertone + depth + clarity map onto the 12-season system →{" "}
+                    <strong>{profile.tone.seasonLabel}</strong>.
+                  </p>
+                )}
               </div>
             </details>
             <p className="mt-3 text-[11px] text-stone-400">
@@ -207,7 +227,7 @@ export function SkinReport({ profile }: { profile: SkinProfile }) {
                 </div>
                 <p className="mt-1 text-xs text-stone-500">{meta.short}</p>
                 <div className="mt-3 flex items-center gap-1.5 text-xs text-stone-600">
-                  <FlaskConical className="h-3.5 w-3.5 text-violet-500" />
+                  <FlaskConical className="h-3.5 w-3.5 text-[#b5451f]" />
                   <span className="font-medium">Look for:</span>
                   {meta.lookFor.slice(0, 2).join(", ")}
                 </div>
@@ -218,7 +238,7 @@ export function SkinReport({ profile }: { profile: SkinProfile }) {
 
         {/* Hero recommendation */}
         {hero && (
-          <div className="mt-6 flex flex-col items-start gap-4 rounded-2xl bg-gradient-to-br from-violet-600 to-fuchsia-600 p-5 text-white sm:flex-row sm:items-center">
+          <div className="mt-6 flex flex-col items-start gap-4 rounded-2xl bg-gradient-to-br from-[#b5451f] to-[#d9a679] p-5 text-white sm:flex-row sm:items-center">
             <span
               className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl"
               style={{ background: "rgba(255,255,255,0.15)" }}
@@ -239,7 +259,7 @@ export function SkinReport({ profile }: { profile: SkinProfile }) {
               <span className="text-lg font-semibold">${hero.product.price}</span>
               <button
                 onClick={() => addToCart(hero.product)}
-                className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-violet-700 transition hover:bg-white/90"
+                className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#93381a] transition hover:bg-white/90"
               >
                 Add to bag
               </button>
@@ -304,7 +324,7 @@ export function SkinReport({ profile }: { profile: SkinProfile }) {
             <Shirt className="h-7 w-7" />
           </span>
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-fuchsia-300/80">
+            <p className="text-xs font-medium uppercase tracking-wide text-[#d9a679]">
               Now style it · {style.headline}
             </p>
             <h3 className="mt-0.5 text-xl font-semibold">
@@ -347,6 +367,60 @@ function Stat({
           <span className="ml-1 text-sm font-normal text-stone-400">
             {suffix}
           </span>
+        )}
+      </p>
+    </div>
+  );
+}
+
+/** Confidence and completeness of the season call. Deliberately prominent:
+ *  a skin-only reading is a weaker claim and the user should see that. */
+function ConfidenceBar({
+  analysis,
+}: {
+  analysis: NonNullable<import("@/lib/color").SkinTone["analysis"]>;
+}) {
+  const pct = Math.round(analysis.confidence * 100);
+  const missing = [
+    !analysis.inputs.hair ? "hair" : null,
+    !analysis.inputs.eye ? "eye" : null,
+  ].filter(Boolean);
+  const strong = analysis.confidence >= 0.75;
+
+  return (
+    <div className="mt-3 rounded-lg border border-stone-200 bg-white/60 px-3 py-2">
+      <div className="flex items-center justify-between text-[11px]">
+        <span className="font-medium text-stone-600">
+          Confidence in this season
+        </span>
+        <span
+          className={`font-semibold ${strong ? "text-emerald-600" : "text-amber-600"}`}
+        >
+          {pct}%
+        </span>
+      </div>
+      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-stone-200">
+        <div
+          className={`h-full rounded-full ${strong ? "bg-emerald-500" : "bg-amber-500"}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <p className="mt-1.5 text-[11px] leading-snug text-stone-500">
+        Decided on your <strong>{analysis.dominant}</strong> axis, from{" "}
+        {analysis.inputs.hair && analysis.inputs.eye
+          ? "skin, hair and eye colour"
+          : analysis.inputs.hair
+            ? "skin and hair colour"
+            : analysis.inputs.eye
+              ? "skin and eye colour"
+              : "skin colour alone"}
+        .
+        {missing.length > 0 && (
+          <>
+            {" "}
+            Add your {missing.join(" and ")} colour on your next scan for a
+            firmer read.
+          </>
         )}
       </p>
     </div>

@@ -1,23 +1,28 @@
 {
-  "name": "derma",
+  "name": "miroir",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "npm run assets && next dev",
+    "assets": "node scripts/copy-mediapipe.mjs",
+    "prebuild": "node scripts/copy-mediapipe.mjs",
     "dev:live": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-tunnel.ps1",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-    "test": "node --experimental-strip-types scripts/color.test.mjs && node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/domain.test.mjs",
+    "lint": "eslint src scripts",
+    "test": "node --experimental-strip-types scripts/color.test.mjs && node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/season.test.mjs && node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/agreement.test.mjs && node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/cart.test.mjs && node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/rate-limit.test.mjs && node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/domain.test.mjs",
+    "agreement": "node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/agreement.mjs",
+    "validate:season": "node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/validate-season.mjs",
+    "calibrate:season": "node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/calibrate-season.mjs",
     "probe": "node scripts/probe-skin.mjs"
   },
   "dependencies": {
+    "@mediapipe/tasks-vision": "^1.0.0",
     "@vercel/blob": "^2.6.1",
     "lucide-react": "^1.26.0",
     "next": "16.2.11",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "sharp": "^0.35.3",
     "zustand": "^5.0.14"
   },
   "devDependencies": {
@@ -27,6 +32,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.11",
+    "sharp": "^0.35.3",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

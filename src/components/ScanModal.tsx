@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { preprocessImage } from "@/lib/image";
+import { HAIR_OPTIONS, EYE_OPTIONS, type ColorOption } from "@/lib/appearance-options";
+import { detectAppearance } from "@/lib/appearance-sample";
 
 type Phase = "choose" | "camera" | "preview" | "analyzing" | "error";
 
@@ -25,8 +27,19 @@ const STEPS = [
   "Matching products to your skin…",
 ];
 
+/**
+ * Gate component. The body mounts only while the scan modal is open, so all of
+ * its state starts fresh each time. That removes the reset-on-close effect,
+ * which set four pieces of state synchronously and forced an extra render on
+ * every close.
+ */
 export function ScanModal() {
   const open = useStore((s) => s.scanOpen);
+  if (!open) return null;
+  return <ScanModalBody />;
+}
+
+function ScanModalBody() {
   const close = useStore((s) => s.closeScan);
   const setProfile = useStore((s) => s.setProfile);
 
@@ -34,7 +47,11 @@ export function ScanModal() {
   const [preview, setPreview] = useState<string | null>(null);
   const [blob, setBlob] = useState<Blob | null>(null);
   const [skinHex, setSkinHex] = useState<string | null>(null);
+  const [hairHex, setHairHex] = useState<string | null>(null);
+  const [eyeHex, setEyeHex] = useState<string | null>(null);
   const [skinConfident, setSkinConfident] = useState(true);
+  const [detecting, setDetecting] = useState(false);
+  const [detected, setDetected] = useState<{ hair: boolean; eye: boolean; notes: string[] } | null>(null);
   const [error, setError] = useState<string>("");
   const [step, setStep] = useState(0);
 
@@ -47,6 +64,11 @@ export function ScanModal() {
     streamRef.current = null;
   }, []);
 
+  // The modal now unmounts when it closes, so the camera track must be released
+  // here. Without this the webcam stream (and its indicator light) would stay
+  // live after closing - the old reset-on-close effect used to cover it.
+  useEffect(() => stopCamera, [stopCamera]);
+
   const reset = useCallback(() => {
     stopCamera();
     setPhase("choose");
@@ -55,10 +77,6 @@ export function ScanModal() {
     setError("");
     setStep(0);
   }, [stopCamera]);
-
-  useEffect(() => {
-    if (!open) reset();
-  }, [open, reset]);
 
   // Cycle through progress messages while analyzing.
   useEffect(() => {
@@ -78,8 +96,28 @@ export function ScanModal() {
       setSkinHex(processed.skinHex);
       setSkinConfident(processed.skinConfident);
       setPhase("preview");
-    } catch {
-      setError("We couldn't read that image. Try a clear, front-facing photo.");
+
+      // Optional convenience: try to pre-select the hair/eye swatches. This is
+      // fire-and-forget and never blocks the scan — if detection fails or is
+      // slow, the user simply picks manually, which is always the source of
+      // truth. Detection only suggests.
+      setDetecting(true);
+      detectAppearance(processed.canvas)
+        .then((d) => {
+          if (d.hair) setHairHex(d.hair.hex);
+          if (d.eye) setEyeHex(d.eye.hex);
+          setDetected({ hair: !!d.hair, eye: !!d.eye, notes: d.notes });
+        })
+        .catch(() => {
+          /* manual pickers remain */
+        })
+        .finally(() => setDetecting(false));
+    } catch (e) {
+      setError(
+        e instanceof Error && e.message
+          ? e.message
+          : "We couldn't read that image. Try a clear, front-facing photo.",
+      );
       setPhase("error");
     }
   }
@@ -126,6 +164,8 @@ export function ScanModal() {
       const form = new FormData();
       form.append("image", new File([blob], "scan.jpg", { type: "image/jpeg" }));
       if (skinHex) form.append("skinHex", skinHex);
+      if (hairHex) form.append("hairHex", hairHex);
+      if (eyeHex) form.append("eyeHex", eyeHex);
       form.append("skinConfident", String(skinConfident));
       const res = await fetch("/api/skin/analyze", {
         method: "POST",
@@ -157,7 +197,7 @@ export function ScanModal() {
         {/* Header */}
         <div className="flex items-center justify-between border-b border-stone-100 px-5 py-4">
           <div className="flex items-center gap-2">
-            <ScanFace className="h-5 w-5 text-violet-600" />
+            <ScanFace className="h-5 w-5 text-[#b5451f]" />
             <h2 className="font-semibold text-stone-900">AI Skin Analysis</h2>
           </div>
           <button
@@ -204,16 +244,19 @@ export function ScanModal() {
                   </li>
                 </ul>
                 <p className="mt-3 border-t border-stone-200 pt-2.5 text-[11px] text-stone-400">
-                  Scanning a friend? Get their okay first — the photo is sent to
-                  Perfect Corp&apos;s AI for analysis and never stored.
+                  Scanning a friend? Get their okay first. Your photo is sent to
+                  Perfect Corp&apos;s AI for analysis, held only for the moments
+                  that takes, then discarded — we keep no copy and no health or
+                  medical record. Scores are cosmetic guidance, not medical
+                  advice.
                 </p>
               </div>
 
               <button
                 onClick={startCamera}
-                className="flex w-full items-center gap-3 rounded-2xl border border-stone-200 p-4 text-left transition hover:border-violet-300 hover:bg-violet-50/50"
+                className="flex w-full items-center gap-3 rounded-2xl border border-stone-200 p-4 text-left transition hover:border-[#d9a679] hover:bg-[#faf5ee]"
               >
-                <span className="grid h-11 w-11 place-items-center rounded-xl bg-violet-100 text-violet-600">
+                <span className="grid h-11 w-11 place-items-center rounded-xl bg-[#f4ead9] text-[#b5451f]">
                   <Camera className="h-5 w-5" />
                 </span>
                 <span>
@@ -227,7 +270,7 @@ export function ScanModal() {
               </button>
               <button
                 onClick={() => fileRef.current?.click()}
-                className="flex w-full items-center gap-3 rounded-2xl border border-stone-200 p-4 text-left transition hover:border-violet-300 hover:bg-violet-50/50"
+                className="flex w-full items-center gap-3 rounded-2xl border border-stone-200 p-4 text-left transition hover:border-[#d9a679] hover:bg-[#faf5ee]"
               >
                 <span className="grid h-11 w-11 place-items-center rounded-xl bg-stone-100 text-stone-600">
                   <Upload className="h-5 w-5" />
@@ -270,7 +313,7 @@ export function ScanModal() {
               </p>
               <button
                 onClick={capture}
-                className="w-full rounded-full bg-violet-600 py-3 font-medium text-white transition hover:bg-violet-700"
+                className="w-full rounded-full bg-[#b5451f] py-3 font-medium text-white transition hover:bg-[#93381a]"
               >
                 Capture
               </button>
@@ -287,6 +330,49 @@ export function ScanModal() {
                   className="aspect-[3/4] w-full object-cover"
                 />
               </div>
+              <div className="rounded-2xl border border-stone-200 bg-stone-50/60 p-3">
+                <p className="text-xs font-semibold text-stone-700">
+                  Hair &amp; eye colour{" "}
+                  <span className="font-normal text-stone-400">(optional)</span>
+                </p>
+                <p className="mt-0.5 text-[11px] leading-snug text-stone-500">
+                  Colour season is judged on all three together. Skip this and we
+                  analyse from skin alone, with lower confidence.
+                </p>
+
+                {detecting && (
+                  <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-stone-400">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Looking at your
+                    photo…
+                  </p>
+                )}
+                {!detecting && detected && (detected.hair || detected.eye) && (
+                  <p className="mt-1.5 text-[11px] text-[#b5451f]">
+                    We pre-selected what we saw — change anything that looks
+                    wrong.
+                  </p>
+                )}
+                {!detecting &&
+                  detected?.notes.map((n) => (
+                    <p key={n} className="mt-1.5 text-[11px] text-stone-400">
+                      {n}
+                    </p>
+                  ))}
+
+                <SwatchRow
+                  title="Hair"
+                  options={HAIR_OPTIONS}
+                  value={hairHex}
+                  onChange={setHairHex}
+                />
+                <SwatchRow
+                  title="Eyes"
+                  options={EYE_OPTIONS}
+                  value={eyeHex}
+                  onChange={setEyeHex}
+                />
+              </div>
+
               <div className="flex gap-2">
                 <button
                   onClick={reset}
@@ -307,13 +393,13 @@ export function ScanModal() {
           {phase === "analyzing" && (
             <div className="flex flex-col items-center gap-4 py-8">
               <div className="relative">
-                <Loader2 className="h-12 w-12 animate-spin text-violet-500" />
-                <ScanFace className="absolute inset-0 m-auto h-5 w-5 text-violet-600" />
+                <Loader2 className="h-12 w-12 animate-spin text-[#b5451f]" />
+                <ScanFace className="absolute inset-0 m-auto h-5 w-5 text-[#b5451f]" />
               </div>
               <p className="text-sm font-medium text-stone-700">{STEPS[step]}</p>
               <div className="h-1.5 w-full overflow-hidden rounded-full bg-stone-100">
                 <div
-                  className="h-full rounded-full bg-violet-500 transition-all duration-700"
+                  className="h-full rounded-full bg-[#b5451f] transition-all duration-700"
                   style={{ width: `${((step + 1) / STEPS.length) * 100}%` }}
                 />
               </div>
@@ -333,6 +419,49 @@ export function ScanModal() {
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+/** Selectable colour swatches. Toggles off when the active one is re-clicked,
+ *  so "I would rather not say" stays reachable without a separate control. */
+function SwatchRow({
+  title,
+  options,
+  value,
+  onChange,
+}: {
+  title: string;
+  options: ColorOption[];
+  value: string | null;
+  onChange: (hex: string | null) => void;
+}) {
+  return (
+    <div className="mt-2.5">
+      <p className="text-[11px] font-medium uppercase tracking-wide text-stone-400">
+        {title}
+      </p>
+      <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label={`${title} colour`}>
+        {options.map((o) => {
+          const active = value === o.hex;
+          return (
+            <button
+              key={o.id}
+              type="button"
+              onClick={() => onChange(active ? null : o.hex)}
+              title={o.label}
+              aria-label={o.label}
+              aria-pressed={active}
+              className={`h-7 w-7 rounded-full border-2 transition ${
+                active
+                  ? "border-[#b5451f] ring-2 ring-[#e9d9be]"
+                  : "border-stone-200 hover:border-stone-400"
+              }`}
+              style={{ background: o.hex }}
+            />
+          );
+        })}
       </div>
     </div>
   );

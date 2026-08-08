@@ -14,6 +14,57 @@ const MIN_SHORT_EDGE = 1440;
 const MAX_LONG_EDGE = 2560;
 const JPEG_QUALITY = 0.95;
 
+/**
+ * Hard cap on what we will send to an API route (5 MB), matching the server's
+ * own limit. Enforced on the *encoded output*, not the source file: a 12 MP
+ * phone photo is legitimately 8-10 MB but downscales to a few hundred KB, so
+ * rejecting on source size would refuse perfectly good selfies.
+ */
+export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+/**
+ * Cap on the source file we're willing to decode at all. Guards against decode
+ * bombs and pathological inputs before they reach `createImageBitmap`.
+ */
+export const MAX_SOURCE_BYTES = 25 * 1024 * 1024;
+export const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+/**
+ * Validates a user-selected file before any decoding work. Throws a
+ * user-presentable message; callers surface it directly in the UI.
+ */
+export function assertUsableImage(file: File): void {
+  if (file.type && !ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+    throw new Error("Please use a JPEG, PNG or WebP image.");
+  }
+  if (file.size > MAX_SOURCE_BYTES) {
+    const mb = (file.size / 1024 / 1024).toFixed(1);
+    throw new Error(`That image is ${mb} MB — please use one under 25 MB.`);
+  }
+}
+
+/**
+ * Encodes a canvas to JPEG, stepping quality down until the result fits under
+ * `MAX_UPLOAD_BYTES`, so an oversized payload can never reach the route.
+ */
+export async function encodeWithinLimit(
+  canvas: HTMLCanvasElement,
+  quality: number,
+): Promise<Blob> {
+  let q = quality;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/jpeg", q),
+    );
+    if (!blob) throw new Error("Failed to encode image");
+    if (blob.size <= MAX_UPLOAD_BYTES) return blob;
+    q -= 0.15;
+    if (q < 0.4) {
+      throw new Error("That image is too large to process — try a smaller one.");
+    }
+  }
+  throw new Error("That image is too large to process — try a smaller one.");
+}
+
 export interface Processed {
   blob: Blob;
   previewUrl: string;
@@ -23,6 +74,8 @@ export interface Processed {
   skinHex: string | null;
   /** False when few skin-like pixels were found (poor light / occlusion). */
   skinConfident: boolean;
+  /** The rendered canvas, reused for optional hair/eye detection. */
+  canvas: HTMLCanvasElement;
 }
 
 /** Is a pixel plausibly facial skin? Broad across skin depths; rejects
@@ -85,6 +138,7 @@ function sampleSkinHex(
 }
 
 export async function preprocessImage(file: File): Promise<Processed> {
+  assertUsableImage(file);
   const bitmap = await loadBitmap(file);
 
   // Determine a 3:4 crop rectangle centered on the source.
@@ -124,14 +178,12 @@ export async function preprocessImage(file: File): Promise<Processed> {
   ctx.imageSmoothingQuality = "high";
   ctx.drawImage(bitmap, cropX, cropY, cropW, cropH, 0, 0, outW, outH);
 
-  const blob = await new Promise<Blob | null>((resolve) =>
-    canvas.toBlob(resolve, "image/jpeg", JPEG_QUALITY),
-  );
-  if (!blob) throw new Error("Failed to encode image");
+  const blob = await encodeWithinLimit(canvas, JPEG_QUALITY);
 
   const skin = sampleSkinHex(ctx, outW, outH);
   return {
     blob,
+    canvas,
     previewUrl: canvas.toDataURL("image/jpeg", 0.8),
     width: outW,
     height: outH,
