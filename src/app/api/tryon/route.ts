@@ -1,14 +1,27 @@
 import { NextRequest } from "next/server";
-import { writeFile, mkdir } from "node:fs/promises";
+import { writeFile, mkdir, unlink } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { put } from "@vercel/blob";
+import { put, del } from "@vercel/blob";
 import { garmentById } from "@/lib/fashion/products";
 import { hasVtoKey, runClothTryOn } from "@/lib/fashion/vto";
+import { check, clientKey, rateLimitHeaders, RULES } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// Vercel Hobby caps serverless functions at 60s. The VTO poll budget in
+// `vto.ts` is deliberately sized to finish inside this with margin.
 export const maxDuration = 60;
+
+/**
+ * Hard cap on a single decoded image (5 MB). The client downscales well below
+ * this, so anything larger is a malformed or hostile request. Without this the
+ * route would `Buffer.from()` an arbitrarily large attacker-controlled base64
+ * string straight into serverless memory.
+ */
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+/** Matching cap on the raw JSON body (two images + fields, base64 ~1.37x). */
+const MAX_BODY_BYTES = 15 * 1024 * 1024;
 
 interface TryOnResponse {
   resultUrl: string;
@@ -56,6 +69,26 @@ async function isReachable(url: string): Promise<boolean> {
 }
 
 export async function POST(req: NextRequest) {
+  // Each call costs a generation credit AND writes to blob storage, so this is
+  // the more expensive of the two routes to leave open.
+  const rl = check(`tryon:${clientKey(req)}`, RULES.tryOn);
+  if (!rl.ok) {
+    return json(
+      {
+        resultUrl: "",
+        source: "mock",
+        note: `Too many try-ons just now — try again in ${rl.retryAfter}s.`,
+      },
+      429,
+      rateLimitHeaders(rl),
+    );
+  }
+
+  const declared = Number(req.headers.get("content-length") || 0);
+  if (declared > MAX_BODY_BYTES) {
+    return json({ resultUrl: "", source: "mock", note: "Payload too large" }, 413);
+  }
+
   let body: {
     userPhotoDataUrl?: string;
     garmentId?: string;
@@ -101,10 +134,17 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  // Every asset we host for Perfect Corp to fetch is deleted as soon as the
+  // try-on resolves — the user's photo must not outlive the request.
+  const hosted: HostedAsset[] = [];
   try {
-    const srcUrl = await hostUserPhoto(userPhotoDataUrl, base);
+    const src = await hostUserPhoto(userPhotoDataUrl, base);
+    hosted.push(src);
+    const srcUrl = src.url;
     if (garmentImageDataUrl) {
-      refUrl = await hostUserPhoto(garmentImageDataUrl, base);
+      const ref = await hostUserPhoto(garmentImageDataUrl, base);
+      hosted.push(ref);
+      refUrl = ref.url;
     }
 
     const [srcOk, refOk] = await Promise.all([
@@ -118,7 +158,7 @@ export async function POST(req: NextRequest) {
       return json({
         resultUrl: garmentImageDataUrl || garment.image,
         source: "mock",
-        note: `Couldn't reach ${which} at a public URL (base: ${base}) — showing garment preview.`,
+        note: `Couldn't reach ${which} at a public URL — showing garment preview.`,
       });
     }
 
@@ -136,37 +176,74 @@ export async function POST(req: NextRequest) {
       source: "mock",
       note: `Live try-on failed (${message}) — showing garment preview.`,
     });
+  } finally {
+    await discardHosted(hosted);
   }
 }
 
+interface HostedAsset {
+  url: string;
+  /** Blob pathname, or an absolute local path in dev. */
+  handle: string;
+  kind: "blob" | "local";
+}
+
+/** Best-effort deletion of every image we uploaded for this request. */
+async function discardHosted(assets: HostedAsset[]): Promise<void> {
+  await Promise.all(
+    assets.map(async (a) => {
+      try {
+        if (a.kind === "blob") await del(a.url);
+        else await unlink(a.handle);
+      } catch {
+        /* cleanup is best-effort; never fail the response over it */
+      }
+    }),
+  );
+}
+
 /** Decodes a base64 data URL and returns a publicly-reachable https URL. */
-async function hostUserPhoto(dataUrl: string, base: string): Promise<string> {
+async function hostUserPhoto(dataUrl: string, base: string): Promise<HostedAsset> {
   const match = dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
   if (!match) throw new Error("invalid data URL");
   const mime = match[1];
   const ext = mime.includes("png") ? "png" : mime.includes("webp") ? "webp" : "jpg";
+
+  // Reject before decoding: base64 inflates ~4/3, so check the encoded length.
+  if (match[2].length > MAX_IMAGE_BYTES * 1.4) {
+    throw new Error("image exceeds the 5 MB limit");
+  }
   const buf = Buffer.from(match[2], "base64");
+  if (buf.byteLength > MAX_IMAGE_BYTES) {
+    throw new Error("image exceeds the 5 MB limit");
+  }
   const filename = `user-${randomUUID()}.${ext}`;
 
   if (hasBlob()) {
-    const { url } = await put(`tryon/${filename}`, buf, {
+    const pathname = `tryon/${filename}`;
+    const { url } = await put(pathname, buf, {
       access: "public",
       contentType: mime,
       addRandomSuffix: false,
     });
-    return url;
+    return { url, handle: pathname, kind: "blob" };
   }
 
   // Local-dev fallback: persist under /public/uploads and serve via the tunnel.
   const dir = path.join(process.cwd(), "public", "uploads");
   await mkdir(dir, { recursive: true });
-  await writeFile(path.join(dir, filename), buf);
-  return `${base}/uploads/${filename}`;
+  const filePath = path.join(dir, filename);
+  await writeFile(filePath, buf);
+  return { url: `${base}/uploads/${filename}`, handle: filePath, kind: "local" };
 }
 
-function json(body: TryOnResponse, status = 200): Response {
+function json(
+  body: TryOnResponse,
+  status = 200,
+  extraHeaders: Record<string, string> = {},
+): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...extraHeaders },
   });
 }

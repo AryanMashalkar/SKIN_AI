@@ -18,7 +18,14 @@ const BASE_URL =
   process.env.PERFECTCORP_VTO_BASE_URL ?? "https://yce-api-01.makeupar.com";
 const CLOTH_ENDPOINT = "/s2s/v2.0/task/cloth";
 const POLL_INTERVAL_MS = 2000;
-const MAX_POLLS = 60; // ~2 min ceiling (generation is slower than analysis)
+/**
+ * Wall-clock polling budget. The route declares `maxDuration = 60` (the Vercel
+ * Hobby ceiling), so we must stop polling and return a real JSON response
+ * *before* the platform kills the function — otherwise the user gets an opaque
+ * 504 instead of the graceful garment-preview fallback. The remaining ~10s
+ * covers task creation, the reachability pre-flight and blob cleanup.
+ */
+const POLL_BUDGET_MS = 48_000;
 
 export function hasVtoKey(): boolean {
   return Boolean(process.env.PERFECTCORP_API_KEY);
@@ -73,7 +80,8 @@ export async function runClothTryOn(input: ClothTryOnInput): Promise<string> {
     startJson?.data?.task_id ?? startJson?.data?.taskId ?? startJson?.task_id;
   if (!taskId) throw new Error("cloth start: missing task_id");
 
-  for (let i = 0; i < MAX_POLLS; i++) {
+  const deadline = Date.now() + POLL_BUDGET_MS;
+  while (Date.now() < deadline) {
     const pollRes = await fetch(
       `${BASE_URL}${CLOTH_ENDPOINT}/${encodeURIComponent(taskId)}`,
       { headers: authHeaders() },
@@ -98,7 +106,11 @@ export async function runClothTryOn(input: ClothTryOnInput): Promise<string> {
     const url = extractResultUrl(body);
     if (url) return url;
 
-    await sleep(Number(data?.polling_interval) * 1000 || POLL_INTERVAL_MS);
+    const wait = Number(data?.polling_interval) * 1000 || POLL_INTERVAL_MS;
+    // Don't sleep past the deadline — we'd rather exit the loop and return a
+    // clean fallback than be terminated mid-sleep.
+    if (Date.now() + wait >= deadline) break;
+    await sleep(wait);
   }
 
   throw new Error("cloth try-on timed out while polling");

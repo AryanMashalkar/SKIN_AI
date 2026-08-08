@@ -17,7 +17,13 @@ const BASE_URL =
 const FILE_ENDPOINT = "/s2s/v2.1/file/skin-analysis";
 const TASK_ENDPOINT = "/s2s/v2.1/task/skin-analysis";
 const POLL_INTERVAL_MS = 2000;
-const MAX_POLLS = 45; // ~90s ceiling
+/**
+ * Wall-clock polling budget. The route declares `maxDuration = 60` (the Vercel
+ * Hobby ceiling); we stop polling before that so the user gets the labelled
+ * fallback profile rather than an opaque 504. The remaining ~15s covers the
+ * three preceding calls (file register, presigned upload, task create).
+ */
+const POLL_BUDGET_MS = 45_000;
 
 export function hasApiKey(): boolean {
   return Boolean(process.env.PERFECTCORP_API_KEY);
@@ -110,7 +116,8 @@ export async function runSkinAnalysis(
   if (!taskId) throw new Error("task create: missing task_id");
 
   // --- Step 4: poll for completion --------------------------------------
-  for (let i = 0; i < MAX_POLLS; i++) {
+  const deadline = Date.now() + POLL_BUDGET_MS;
+  while (Date.now() < deadline) {
     const pollRes = await fetch(`${BASE_URL}${TASK_ENDPOINT}/${taskId}`, {
       headers: authHeaders(),
     });
@@ -130,6 +137,8 @@ export async function runSkinAnalysis(
     }
 
     const interval = Number(data?.polling_interval) * 1000 || POLL_INTERVAL_MS;
+    // Don't sleep past the deadline — exit cleanly instead of being terminated.
+    if (Date.now() + interval >= deadline) break;
     await sleep(interval);
   }
 
