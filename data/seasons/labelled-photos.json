@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "status": "AWAITING DATA - no subjects labelled yet.",
+  "labelSpace": [
+    "light-spring", "true-spring", "bright-spring",
+    "light-summer", "true-summer", "soft-summer",
+    "soft-autumn", "true-autumn", "deep-autumn",
+    "true-winter", "deep-winter", "bright-winter"
+  ],
+  "fieldNotes": {
+    "ratings": "APPEND-ONLY RAW DATA. One entry per analyst per subject. Never mutated, never back-filled from consensus. Kappa is computed only from this array - overwriting a rating with a consensus value destroys the ability to measure agreement at all.",
+    "consensus": "DERIVED, and records how it was derived. A consensus that does not state its method launders disagreement into false certainty. Cases with no majority are left season:null, method:'unresolved', includeInHeadline:false - retained and counted, never deleted.",
+    "measured": "Colours sampled by the SHIPPED browser pipeline (src/lib/image.ts + src/lib/appearance-sample.ts), so validation measures the real product rather than an idealised input. Record the sampler version so results stay attributable after the sampler changes.",
+    "enginePrediction": "DELIBERATELY ABSENT. Predictions are computed at scoring time by scripts/agreement.mjs. Storing them next to ground truth invites fitting to the labels.",
+    "photo": "Path only. Photographs are PII and are gitignored (data/seasons/photos/). Only the sampled hexes are committed.",
+    "fitzpatrick": "Recorded so the set can be audited for balance. An unbalanced set would reproduce exactly the deep-skin blind spot the engine already had once."
+  },
+  "protocol": {
+    "targetSubjects": 150,
+    "overlapSubjects": 40,
+    "overlapNote": "At least 40 subjects must be rated independently by 2+ analysts. Inter-rater kappa is computed on this overlap and MUST be reported before any engine accuracy figure.",
+    "labelSource": "Draped in-person analysis by a trained colour analyst. Analysts must not see the engine's output, the sampled hexes, or each other's ratings.",
+    "capture": "Neutral daylight, no makeup, no filter, hair back, plain background - the same protocol as the in-app scan."
+  },
+  "exampleSubject": {
+    "_comment": "SHAPE REFERENCE ONLY - not real data, not loaded by the scorer.",
+    "id": "subj-0001",
+    "capturedAt": "2026-08-01T10:00:00Z",
+    "photo": "photos/subj-0001.jpg",
+    "consent": { "granted": true, "scope": "research-validation", "withdrawable": true },
+    "fitzpatrick": 4,
+    "measured": {
+      "skin": "#c68642",
+      "hair": "#3b2a1e",
+      "eye": "#5a3a22",
+      "skinConfident": true,
+      "samplerVersion": "browser-sampler@1"
+    },
+    "ratings": [
+      { "analystId": "A1", "season": "true-autumn", "confidence": 0.85, "method": "draped-in-person", "ratedAt": "2026-08-02T09:00:00Z", "notes": "" },
+      { "analystId": "A2", "season": "soft-autumn", "confidence": 0.6, "method": "draped-in-person", "ratedAt": "2026-08-02T14:00:00Z", "notes": "borderline on chroma" }
+    ],
+    "adjudicated": null,
+    "consensus": {
+      "season": null,
+      "method": "unresolved",
+      "agreement": 0.5,
+      "includeInHeadline": false
+    }
+  },
+  "subjects": []
+}
