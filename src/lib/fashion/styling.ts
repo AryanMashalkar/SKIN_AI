@@ -15,7 +15,6 @@
 import type { Garment } from "@/lib/fashion/products";
 import type { SkinProfile } from "@/lib/skin";
 import {
-  analyzeSkinTone,
   UNDERTONE_LABEL,
   type Undertone,
 } from "@/lib/color";
@@ -44,22 +43,37 @@ export function deriveStyleProfile(profile: SkinProfile): StyleProfile {
 
   // --- Primary path: real personal-colour analysis --------------------------
   if (tone) {
+    // Prefer the three-axis hue reading over the skin-only undertone when it is
+    // available. Skin undertone alone frequently reads "neutral" (the b*-a* gap
+    // is narrow on most skin), which collapsed genuinely cool or warm people to
+    // "balanced" and threw away the hair/eye signal we just collected.
+    const hue = tone.analysis?.axes.hue.score;
     const recommend: PaletteTemp =
-      tone.undertone === "warm"
-        ? "warm"
-        : tone.undertone === "cool"
-          ? "cool"
-          : "balanced";
+      hue !== undefined && Math.abs(hue) >= 0.12
+        ? hue > 0
+          ? "warm"
+          : "cool"
+        : tone.undertone === "warm"
+          ? "warm"
+          : tone.undertone === "cool"
+            ? "cool"
+            : "balanced";
+
+    // Report the axis-derived temperature so the copy matches the ranking.
+    const undertone: Undertone =
+      recommend === "warm" ? "warm" : recommend === "cool" ? "cool" : "neutral";
 
     const rationale = [
-      `Your skin tone reads as ${UNDERTONE_LABEL[tone.undertone].toLowerCase()} (ITA° ${tone.ita}), placing you in the ${tone.seasonLabel} palette.`,
+      tone.analysis
+        ? `Measured across skin, hair and eye colour, your ${tone.analysis.dominant} axis dominates — placing you in the ${tone.seasonLabel} palette.`
+        : `Your skin tone reads as ${UNDERTONE_LABEL[tone.undertone].toLowerCase()} (ITA° ${tone.ita}), placing you in the ${tone.seasonLabel} palette.`,
       tone.description,
     ];
 
     return {
       recommend,
       hasTone: true,
-      undertone: tone.undertone,
+      undertone,
       seasonLabel: tone.seasonLabel,
       palette: tone.palette,
       headline: `${tone.seasonLabel} · ${tone.headline}`,
@@ -129,10 +143,13 @@ export function rankGarmentsForSkin(
     let flatters = false;
     let caution = false;
 
-    // Garment colour temperature. Prefer analysing the actual swatch hex so
-    // it stays consistent with the same colour science; fall back to the
-    // hand-set `warmth` field.
-    const garmentWarmth = garmentUndertone(garment);
+    // Garment colour temperature comes from the hand-authored `warmth` field.
+    // We deliberately do NOT run `analyzeSkinTone` on the swatch: `undertoneOf`
+    // thresholds the a*-b* gap at values calibrated for skin (where b* >> a*),
+    // and dyed fabric does not live in that region of Lab space. Applying it to
+    // a swatch mislabels most garments and makes `buildReason` contradict the
+    // garment's own colour name (e.g. "warm brick is a cool shade").
+    const garmentWarmth = garment.warmth;
 
     if (style.recommend === "cool") {
       if (garmentWarmth === "cool") {
@@ -172,18 +189,6 @@ export function rankGarmentsForSkin(
   });
 
   return ranked.sort((a, b) => b.score - a.score);
-}
-
-/** A garment's colour temperature, from its swatch hex (consistent science). */
-function garmentUndertone(garment: Garment): Undertone {
-  if (garment.swatch) {
-    try {
-      return analyzeSkinTone(garment.swatch).undertone;
-    } catch {
-      /* fall back to hand-set warmth */
-    }
-  }
-  return garment.warmth;
 }
 
 function buildReason(

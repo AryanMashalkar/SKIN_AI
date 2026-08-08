@@ -43,6 +43,12 @@ export interface SkinTone {
   description: string;
   /** True when the underlying skin-colour sample was low-confidence. */
   lowConfidence?: boolean;
+  /**
+   * Full three-axis season analysis, when hair/eye colour were available.
+   * Type-only import: season.ts imports values from here, so a value import
+   * back would create a cycle.
+   */
+  analysis?: import("@/lib/season").SeasonAnalysis;
 }
 
 export interface PaletteColor {
@@ -328,29 +334,79 @@ const SEASONS: Record<Season, SeasonDef> = {
 };
 
 /**
- * Map undertone + depth + clarity onto one of the 12 seasons. A deliberately
- * simple, explainable rule set: undertone picks the warm/cool family, depth and
- * chroma pick the sub-type.
+ * Reference (median) chroma for each depth band, from sampled skin across the
+ * Fitzpatrick range. Chroma covaries strongly with depth — mid-brown skin sits
+ * around C* 38 while very light skin sits near C* 20 — so an *absolute* chroma
+ * threshold does not mean the same thing at different depths.
+ */
+const REFERENCE_CHROMA: Record<Depth, number> = {
+  light: 20,
+  medium: 38,
+  deep: 26,
+};
+
+/**
+ * Chroma expressed relative to what is typical for this skin depth.
+ * 1.0 = average saturation for the band, >1 = clear/bright, <1 = muted/soft.
+ *
+ * This is what makes the season split meaningful across skin depths: comparing
+ * raw C* against a fixed cutoff classifies every medium and deep tone into the
+ * same bucket, because their baseline chroma is simply higher.
+ */
+export function clarityOf(chroma: number, depth: Depth): number {
+  return chroma / REFERENCE_CHROMA[depth];
+}
+
+export type Clarity = "bright" | "true" | "soft";
+
+export function clarityBand(clarity: number): Clarity {
+  if (clarity >= 1.15) return "bright";
+  if (clarity < 0.85) return "soft";
+  return "true";
+}
+
+/**
+ * Map undertone + depth + clarity onto one of the 12 seasons.
+ *
+ * Undertone picks the warm/cool family; depth and *depth-relative* clarity pick
+ * the sub-type. All 12 seasons are reachable — see the season-coverage
+ * assertions in `scripts/color.test.mjs`.
  */
 export function classifySeason(
   undertone: Undertone,
   depth: Depth,
   chroma: number,
 ): Season {
-  const bright = chroma >= 22; // clear / high-chroma skin
-  const warm = undertone === "warm" || (undertone === "neutral" && chroma >= 18);
+  const clarity = clarityOf(chroma, depth);
+  const band = clarityBand(clarity);
+
+  // Neutral undertones lean warm when their colouring is clear and saturated,
+  // and cool when it is muted.
+  const warm = undertone === "warm" || (undertone === "neutral" && clarity >= 0.9);
 
   if (warm) {
-    if (depth === "light") return bright ? "bright-spring" : "light-spring";
-    if (depth === "deep") return "deep-autumn";
-    // medium
-    return bright ? "true-spring" : chroma < 14 ? "soft-autumn" : "true-autumn";
+    if (depth === "light") return band === "bright" ? "bright-spring" : "light-spring";
+    if (depth === "medium") {
+      if (band === "bright") return "true-spring";
+      return band === "soft" ? "soft-autumn" : "true-autumn";
+    }
+    // deep
+    if (band === "bright") return "deep-autumn";
+    return band === "soft" ? "soft-autumn" : "true-autumn";
   }
-  // cool family (cool undertone, or neutral + low chroma)
-  if (depth === "light") return chroma < 14 ? "light-summer" : "true-summer";
-  if (depth === "deep") return bright ? "bright-winter" : "deep-winter";
-  // medium
-  return chroma >= 20 ? "true-winter" : chroma < 12 ? "soft-summer" : "true-summer";
+
+  // cool family (cool undertone, or neutral + muted colouring)
+  if (depth === "light") {
+    if (band === "bright") return "true-summer";
+    return band === "soft" ? "soft-summer" : "light-summer";
+  }
+  if (depth === "medium") {
+    if (band === "bright") return "true-winter";
+    return band === "soft" ? "soft-summer" : "true-summer";
+  }
+  // deep
+  if (band === "bright") return "bright-winter";
+  return band === "soft" ? "deep-winter" : "true-winter";
 }
 
 /** Full analysis: skin colour hex -> complete SkinTone. */

@@ -1,0 +1,42 @@
+{
+  "$schema_note": "Twelve-tone seasonal colour reference cases.",
+  "provenance": "SYNTHETIC ARCHETYPES - NOT MEASURED PEOPLE. Each case is a hex triplet constructed to match the canonical published description of that season (skin/hair/eye characteristics as described in the Sci\\ART 12-tone literature). Agreement against this set measures whether the engine reproduces the textbook DEFINITION of each season. It does NOT measure agreement with trained human analysts on real photographs - that requires a labelled photo set, which is tracked separately in data/seasons/README.md. Do not describe results from this file as clinical or empirical validation.",
+  "version": 1,
+  "cases": [
+    { "id": "bright-spring-1", "expected": "bright-spring", "skin": "#f2c9a0", "hair": "#8b5a2b", "eye": "#4a9db5", "note": "warm light skin, medium golden-brown hair, bright clear blue eyes, high contrast" },
+    { "id": "bright-spring-2", "expected": "bright-spring", "skin": "#eec39a", "hair": "#a86b30", "eye": "#3f9d6d", "note": "warm skin, golden brown hair, vivid green eyes" },
+
+    { "id": "true-spring-1", "expected": "true-spring", "skin": "#f5cba7", "hair": "#d4a34a", "eye": "#6aa8c4", "note": "warm peach skin, golden blonde hair, warm blue eyes" },
+    { "id": "true-spring-2", "expected": "true-spring", "skin": "#f0c090", "hair": "#c68e3c", "eye": "#7fae6a", "note": "golden skin, honey blonde hair, warm green eyes" },
+
+    { "id": "light-spring-1", "expected": "light-spring", "skin": "#fadfc4", "hair": "#e8cf9a", "eye": "#9fc4d6", "note": "very light warm skin, pale golden blonde, light blue eyes, low contrast" },
+    { "id": "light-spring-2", "expected": "light-spring", "skin": "#f8dcc0", "hair": "#e0c890", "eye": "#a9cbb4", "note": "light warm skin, light golden hair, light green eyes" },
+
+    { "id": "light-summer-1", "expected": "light-summer", "skin": "#f7dcd0", "hair": "#cfc0a8", "eye": "#a3bccd", "note": "light cool skin, ash blonde hair, soft blue eyes" },
+    { "id": "light-summer-2", "expected": "light-summer", "skin": "#f4d8cc", "hair": "#c8b9a4", "eye": "#aab8bd", "note": "light cool skin, ash blonde, soft grey-blue eyes" },
+
+    { "id": "true-summer-1", "expected": "true-summer", "skin": "#eecfc0", "hair": "#8f7f6e", "eye": "#7f9bb0", "note": "cool skin, ash brown hair, grey-blue eyes" },
+    { "id": "true-summer-2", "expected": "true-summer", "skin": "#e9c8ba", "hair": "#85756a", "eye": "#8aa3b3", "note": "cool skin, medium ash brown, soft blue eyes" },
+
+    { "id": "soft-summer-1", "expected": "soft-summer", "skin": "#e0c0b0", "hair": "#7a6c60", "eye": "#7d8b83", "note": "neutral-cool medium skin, mousy ash brown, grey-green eyes, low contrast" },
+    { "id": "soft-summer-2", "expected": "soft-summer", "skin": "#dcbbab", "hair": "#756759", "eye": "#83897e", "note": "muted cool skin, mousy brown, muted hazel-grey eyes" },
+
+    { "id": "soft-autumn-1", "expected": "soft-autumn", "skin": "#ddb894", "hair": "#8a6a45", "eye": "#8a7f56", "note": "neutral-warm medium skin, mousy golden brown, soft hazel eyes" },
+    { "id": "soft-autumn-2", "expected": "soft-autumn", "skin": "#d9b48f", "hair": "#7f6440", "eye": "#837a52", "note": "muted warm skin, dull golden brown hair, muted hazel eyes" },
+
+    { "id": "true-autumn-1", "expected": "true-autumn", "skin": "#d9a066", "hair": "#8a4b23", "eye": "#6f5327", "note": "warm golden skin, auburn hair, warm brown eyes" },
+    { "id": "true-autumn-2", "expected": "true-autumn", "skin": "#cf9558", "hair": "#7d4520", "eye": "#6a5024", "note": "golden-olive skin, chestnut hair, amber-brown eyes" },
+
+    { "id": "deep-autumn-1", "expected": "deep-autumn", "skin": "#a9714f", "hair": "#2e1d12", "eye": "#3f2a18", "note": "deep warm skin, dark brown hair, deep warm brown eyes" },
+    { "id": "deep-autumn-2", "expected": "deep-autumn", "skin": "#96603f", "hair": "#291a10", "eye": "#3a2616", "note": "deep golden skin, near-black warm hair, deep brown eyes" },
+
+    { "id": "deep-winter-1", "expected": "deep-winter", "skin": "#d8b9a8", "hair": "#1f1a18", "eye": "#2a2320", "note": "cool-neutral skin, near-black hair, deep cool brown eyes" },
+    { "id": "deep-winter-2", "expected": "deep-winter", "skin": "#a37e70", "hair": "#1c1715", "eye": "#262020", "note": "medium COOL skin (corrected: original hex was a warm tan, which is not a Winter), black hair, near-black eyes" },
+
+    { "id": "true-winter-1", "expected": "true-winter", "skin": "#e3c4b6", "hair": "#241d1c", "eye": "#4a6b85", "note": "cool skin, dark cool brown hair, cool blue eyes" },
+    { "id": "true-winter-2", "expected": "true-winter", "skin": "#ddbcae", "hair": "#201a19", "eye": "#3f5f7a", "note": "cool skin, black-brown hair, cool steel blue eyes" },
+
+    { "id": "bright-winter-1", "expected": "bright-winter", "skin": "#f0d2c2", "hair": "#1e1917", "eye": "#2f9fc4", "note": "light cool skin, near-black hair, vivid clear blue eyes, extreme contrast" },
+    { "id": "bright-winter-2", "expected": "bright-winter", "skin": "#ecccbc", "hair": "#221c1a", "eye": "#35a5b8", "note": "light cool skin, black hair, bright turquoise eyes" }
+  ]
+}
