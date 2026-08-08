@@ -37,8 +37,8 @@ export function Shop() {
       {activeProfile && <SkinReport profile={activeProfile} />}
 
       {!activeProfile && (
-        <div className="flex flex-col items-center gap-4 rounded-3xl border border-dashed border-violet-200 bg-violet-50/40 p-8 text-center">
-          <div className="grid h-14 w-14 place-items-center rounded-2xl bg-violet-100 text-violet-600">
+        <div className="flex flex-col items-center gap-4 rounded-3xl border border-dashed border-[#e9d9be] bg-[#faf5ee]/40 p-8 text-center">
+          <div className="grid h-14 w-14 place-items-center rounded-2xl bg-[#f4ead9] text-[#b5451f]">
             <ScanFace className="h-7 w-7" />
           </div>
           <div>
@@ -62,15 +62,22 @@ export function Shop() {
 
       {/* Shop header + filters */}
       <div id="shop" className="scroll-mt-20">
-        <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="reveal flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h2 className="font-serif text-3xl font-medium tracking-tight text-stone-900">
+            {/* Eyebrow + rule. A label above the heading and a short accent
+                rule under it give the section a masthead rather than a
+                paragraph of bold text. */}
+            <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#b5451f]">
+              <span className="h-px w-6 bg-[#b5451f]/50" />
+              {activeProfile ? "Personalised" : "Catalogue"}
+            </p>
+            <h2 className="display mt-2 font-serif text-4xl font-medium text-stone-900 sm:text-5xl">
               {activeProfile ? "Matched to your skin" : "The shelf"}
             </h2>
-            <p className="mt-1 text-sm text-stone-500">
+            <p className="mt-2 max-w-md text-sm text-stone-500">
               {activeProfile
                 ? "Sorted by how well each formula fits your results."
-                : "Dermatologist-informed formulas for every concern."}
+                : "A demo shelf covering every concern we score."}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -90,14 +97,21 @@ export function Shop() {
           </div>
         </div>
 
-        <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((o, i) => (
-            <ProductCard
+            // Cascade the grid in rather than popping it all at once. Capped
+            // so a long list does not leave the last cards waiting.
+            <div
               key={o.product.id}
-              product={o.product}
-              match={o.match}
-              rank={cat === "All" ? i : undefined}
-            />
+              className="animate-rise"
+              style={{ "--delay": `${Math.min(i, 8) * 55}ms` } as React.CSSProperties}
+            >
+              <ProductCard
+                product={o.product}
+                match={o.match}
+                rank={cat === "All" ? i : undefined}
+              />
+            </div>
           ))}
         </div>
       </div>
@@ -117,10 +131,11 @@ function FilterChip({
   return (
     <button
       onClick={onClick}
-      className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition ${
+      aria-pressed={active}
+      className={`rounded-full px-4 py-1.5 text-sm font-medium transition-all duration-300 ${
         active
-          ? "bg-stone-900 text-white"
-          : "border border-stone-200 text-stone-600 hover:bg-stone-50"
+          ? "bg-stone-900 text-white shadow-soft"
+          : "border border-stone-200 bg-white/50 text-stone-600 backdrop-blur hover:-translate-y-0.5 hover:border-[#d9a679] hover:bg-white"
       }`}
     >
       {label}

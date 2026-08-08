@@ -8,19 +8,6 @@ import {
   type ConcernKey,
   type SkinProfile,
 } from "@/lib/skin";
-import { analyzeSkinTone } from "@/lib/color";
-
-// A spread of plausible skin colours across depths/undertones so the demo shows
-// variety when no real photo is available to sample.
-const MOCK_SKIN_HEXES = [
-  "#f0c8a0", // light warm
-  "#e8b98f", // light-medium warm
-  "#d9a679", // medium warm
-  "#c98a6b", // medium
-  "#a9714f", // medium-deep
-  "#8a5a3c", // deep warm
-  "#e6bfa3", // light cool-neutral
-];
 
 const PRESETS: Partial<Record<ConcernKey, [number, number]>>[] = [
   // Oily / breakout-prone
@@ -63,8 +50,16 @@ export function mockSkinProfile(): SkinProfile {
     overall,
     demo: true,
     capturedAt: new Date().toISOString(),
-    tone: analyzeSkinTone(
-      MOCK_SKIN_HEXES[Math.floor(Math.random() * MOCK_SKIN_HEXES.length)],
-    ),
+    // Deliberately NO tone.
+    //
+    // This used to attach `analyzeSkinTone(<random hex>)`, which meant the
+    // report rendered an ITA angle, CIELAB coordinates and the whole "see the
+    // math" panel from an invented colour — scientific formatting wrapped
+    // around a `Math.random()` call, with no demo marker on that panel.
+    //
+    // A real measured tone is attached by the analyze route when the browser
+    // successfully samples one from the photo. If it could not, the colour
+    // section simply does not render, which is the honest outcome: we have
+    // simulated concern scores, and no colour measurement at all.
   };
 }
