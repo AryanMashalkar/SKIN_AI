@@ -16,7 +16,7 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "Derma — AI Beauty & Fashion",
+  title: "MIROIR — your skin picks your products and your colours",
   description:
     "Clinical AI skin analysis and photorealistic apparel virtual try-on, powered by the Perfect Corp YouCam APIs.",
 };

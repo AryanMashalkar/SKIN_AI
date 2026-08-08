@@ -17,8 +17,30 @@ import { preparePhoto } from "@/lib/fashion/photo";
 import { useStore } from "@/lib/store";
 import { styleForGarment } from "@/lib/fashion/styling";
 
+/**
+ * Gate component. The body mounts only while a garment is selected, so its
+ * state (size, camera, notes) is fresh on every open. That removes two
+ * reset-on-change effects which were setting state synchronously and forcing
+ * an extra render pass each time the modal opened.
+ *
+ * Keying on `tryOnFor` also resets state when the user jumps straight from one
+ * garment to another without closing - which the old effects handled only by
+ * accident.
+ */
 export function TryOnModal() {
   const tryOnFor = useFashion((s) => s.tryOnFor);
+  const garment = tryOnFor ? garmentById(tryOnFor) : undefined;
+  if (!tryOnFor || !garment) return null;
+  return <TryOnModalBody key={tryOnFor} tryOnFor={tryOnFor} garment={garment} />;
+}
+
+function TryOnModalBody({
+  tryOnFor,
+  garment,
+}: {
+  tryOnFor: string;
+  garment: NonNullable<ReturnType<typeof garmentById>>;
+}) {
   const close = useFashion((s) => s.closeTryOn);
   const userPhoto = useFashion((s) => s.userPhoto);
   const setUserPhoto = useFashion((s) => s.setUserPhoto);
@@ -26,17 +48,16 @@ export function TryOnModal() {
   const statusMap = useFashion((s) => s.status);
   const setResult = useFashion((s) => s.setResult);
   const setStatus = useFashion((s) => s.setStatus);
-  const addToCart = useFashion((s) => s.addToCart);
+  const addGarment = useStore((s) => s.addGarment);
 
   const skinProfile = useStore((s) => s.profile);
 
-  const garment = tryOnFor ? garmentById(tryOnFor) : undefined;
-  const result = tryOnFor ? results[tryOnFor] : undefined;
-  const status = tryOnFor ? statusMap[tryOnFor] ?? "idle" : "idle";
+  const result = results[tryOnFor];
+  const status = statusMap[tryOnFor] ?? "idle";
 
   const [camera, setCamera] = useState(false);
   const [note, setNote] = useState<string>("");
-  const [size, setSize] = useState<string>("");
+  const [size, setSize] = useState<string>(garment.sizes[0] ?? "");
   const [added, setAdded] = useState(false);
 
   const fileRef = useRef<HTMLInputElement>(null);
@@ -48,20 +69,9 @@ export function TryOnModal() {
     streamRef.current = null;
   }, []);
 
-  useEffect(() => {
-    if (!tryOnFor) {
-      stopCamera();
-      setCamera(false);
-      setNote("");
-      setAdded(false);
-    }
-  }, [tryOnFor, stopCamera]);
-
-  useEffect(() => {
-    setSize(garment?.sizes[0] ?? "");
-  }, [garment]);
-
-  if (!tryOnFor || !garment) return null;
+  // Stop any live camera track when the modal unmounts. This is a real side
+  // effect on an external resource, so it stays in an effect.
+  useEffect(() => stopCamera, [stopCamera]);
 
   const skinVerdict = skinProfile ? styleForGarment(skinProfile, garment) : null;
 
@@ -131,7 +141,7 @@ export function TryOnModal() {
   }
 
   function handleAdd() {
-    addToCart(garment!, size);
+    addGarment(garment, size);
     setAdded(true);
     setTimeout(() => setAdded(false), 1200);
   }
@@ -312,6 +322,11 @@ export function TryOnModal() {
               <p className="mt-2 text-[11px] leading-snug text-white/40">
                 The AI fits the garment to your body — size is for your order, so
                 the preview looks the same across sizes.
+              </p>
+              <p className="mt-2 border-t border-white/10 pt-2 text-[11px] leading-snug text-white/40">
+                Your photo is uploaded to temporary storage only so the try-on
+                service can fetch it, and is deleted as soon as the render
+                finishes. It isn&apos;t kept after you close this window.
               </p>
             </div>
 

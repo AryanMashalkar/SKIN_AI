@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { ShoppingBag, ArrowLeft } from "lucide-react";
-import { fashionCartCount, useFashion } from "@/lib/fashion/store";
+import { cartCount, useStore } from "@/lib/store";
 import { useHydrated } from "@/lib/useHydrated";
 
 export function FashionNavbar() {
-  const cart = useFashion((s) => s.cart);
-  const openCart = useFashion((s) => s.openCart);
+  const cart = useStore((s) => s.cart);
+  const openCart = useStore((s) => s.openCart);
   const hydrated = useHydrated();
-  const count = hydrated ? fashionCartCount(cart) : 0;
+  const count = hydrated ? cartCount(cart) : 0;
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/10 bg-neutral-950/80 backdrop-blur-md">
@@ -19,7 +19,7 @@ export function FashionNavbar() {
             href="/"
             className="hidden items-center gap-1.5 text-xs font-medium text-white/50 transition hover:text-white sm:flex"
           >
-            <ArrowLeft className="h-3.5 w-3.5" /> Derma Beauty
+            <ArrowLeft className="h-3.5 w-3.5" /> Skincare
           </Link>
           <Link href="/fashion" className="flex items-baseline gap-1.5">
             <span className="text-lg font-semibold tracking-[0.2em] text-white">

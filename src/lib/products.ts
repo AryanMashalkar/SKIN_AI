@@ -178,3 +178,9 @@ export const CATEGORIES: Category[] = [
   "Eye Care",
   "SPF",
 ];
+
+/** Lookup by id. Used by the cart, which stores a lightweight item rather than
+ *  the whole product record. */
+export function productById(id: string): Product | undefined {
+  return PRODUCTS.find((p) => p.id === id);
+}

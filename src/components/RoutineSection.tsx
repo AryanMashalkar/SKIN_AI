@@ -13,7 +13,7 @@ import { ProductImage } from "@/components/ProductImage";
 import { useStore } from "@/lib/store";
 
 export function RoutineSection({ profile }: { profile: SkinProfile }) {
-  const addToCart = useStore((s) => s.addToCart);
+  const addToCart = useStore((s) => s.addProduct);
   const [tier, setTier] = useState<RoutineTier>("complete");
   const [added, setAdded] = useState(false);
 

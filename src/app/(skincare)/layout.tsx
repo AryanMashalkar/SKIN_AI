@@ -15,7 +15,7 @@ export default function SkincareLayout({
       <ScanModal />
       <footer className="border-t border-stone-200 bg-white">
         <div className="mx-auto max-w-6xl px-5 py-8 text-sm text-stone-500 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p>© {new Date().getFullYear()} Derma. A skin-first shopping experience.</p>
+          <p>© {new Date().getFullYear()} MIROIR — one scan, your skin and your colours.</p>
           <p className="text-stone-400">
             Skin analysis by{" "}
             <span className="font-medium text-stone-600">
