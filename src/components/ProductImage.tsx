@@ -40,13 +40,20 @@ export function ProductImage({
   );
 }
 
-function Bottle({ category, id }: { category: Category; id: string }) {
-  const body = `url(#body-${id})`;
-  const glass = `url(#glass-${id})`;
-  const cap = "#2b2b31";
-
-  // A translucent label with a couple of hint-lines, shared across shapes.
-  const Label = ({ y = 66, h = 34 }: { y?: number; h?: number }) => (
+// A translucent label with a couple of hint-lines, shared across bottle shapes.
+// Hoisted to module scope: defining it inside `Bottle` created a brand-new
+// component type on every render, which forces React to unmount and remount
+// the subtree instead of updating it.
+function Label({
+  y = 66,
+  h = 34,
+  body,
+}: {
+  y?: number;
+  h?: number;
+  body: string;
+}) {
+  return (
     <g>
       <rect x="40" y={y} width="40" height={h} rx="4" fill="#fff" opacity="0.9" />
       <rect x="46" y={y + 8} width="28" height="3" rx="1.5" fill={body} opacity="0.55" />
@@ -54,6 +61,12 @@ function Bottle({ category, id }: { category: Category; id: string }) {
       <rect x="46" y={y + 21} width="24" height="2.5" rx="1.25" fill="#d1d5db" />
     </g>
   );
+}
+
+function Bottle({ category, id }: { category: Category; id: string }) {
+  const body = `url(#body-${id})`;
+  const glass = `url(#glass-${id})`;
+  const cap = "#2b2b31";
 
   switch (category) {
     case "Serum":
@@ -69,7 +82,7 @@ function Bottle({ category, id }: { category: Category; id: string }) {
           <rect x="50" y="18" width="20" height="8" rx="3" fill={cap} />
           <rect x={x} y="24" width={w} height="102" rx="12" fill={body} />
           <rect x={x} y="24" width={w * 0.4} height="102" rx="12" fill={glass} />
-          <Label y={62} h={40} />
+          <Label y={62} h={40} body={body} />
         </g>
       );
     }
@@ -80,7 +93,7 @@ function Bottle({ category, id }: { category: Category; id: string }) {
           <rect x="30" y="30" width="60" height="14" rx="5" fill={cap} />
           <rect x="26" y="42" width="68" height="82" rx="14" fill={body} />
           <rect x="26" y="42" width="26" height="82" rx="14" fill={glass} />
-          <Label y={64} h={38} />
+          <Label y={64} h={38} body={body} />
         </g>
       );
     }
@@ -93,7 +106,7 @@ function Bottle({ category, id }: { category: Category; id: string }) {
           <rect x="52" y="22" width="16" height="8" fill={cap} />
           <rect x="38" y="30" width="44" height="96" rx="12" fill={body} />
           <rect x="38" y="30" width="18" height="96" rx="12" fill={glass} />
-          <Label y={62} h={44} />
+          <Label y={62} h={44} body={body} />
         </g>
       );
     }
@@ -107,7 +120,7 @@ function Bottle({ category, id }: { category: Category; id: string }) {
             fill={body}
           />
           <path d="M44 22 h12 l-2 105 h-6 a6 6 0 0 1 -6 -5 z" fill={glass} />
-          <Label y={54} h={40} />
+          <Label y={54} h={40} body={body} />
         </g>
       );
     }
@@ -120,7 +133,7 @@ function Bottle({ category, id }: { category: Category; id: string }) {
           <rect x="48" y="18" width="24" height="8" rx="3" fill={cap} />
           <rect x="40" y="24" width="40" height="102" rx="13" fill={body} />
           <rect x="40" y="24" width="16" height="102" rx="13" fill={glass} />
-          <Label y={62} h={42} />
+          <Label y={62} h={42} body={body} />
         </g>
       );
     }

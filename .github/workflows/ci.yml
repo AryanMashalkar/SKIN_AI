@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      # The season engine is the product's differentiator, so its agreement
+      # with the reference archetypes is gated rather than merely reported.
+      # A drop below the threshold fails the build via scripts/season.test.mjs.
+      - name: Season engine validation
+        run: npm run validate:season
+
+      - name: Build
+        run: npm run build
+        env:
+          # The build must succeed with no secrets present - the app is
+          # designed to fall back to labelled demo mode without them.
+          PERFECTCORP_API_KEY: ""

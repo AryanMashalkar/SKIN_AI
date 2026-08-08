@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { ShoppingBag, Sparkles, ScanFace } from "lucide-react";
 import { cartCount, useStore } from "@/lib/store";
 import { useHydrated } from "@/lib/useHydrated";
@@ -14,19 +15,19 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-40 border-b border-stone-300/50 bg-[#f4f0e6]/80 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5">
-        <a href="/" className="flex items-center gap-2">
+        <Link href="/" className="flex items-center gap-2">
           <span className="grid h-9 w-9 place-items-center rounded-xl bg-stone-900 text-white shadow-sm">
             <Sparkles className="h-5 w-5" />
           </span>
           <span className="font-serif text-2xl font-medium tracking-tight text-stone-900">
-            Derma
+            MIROIR
           </span>
-        </a>
+        </Link>
 
         <nav className="hidden items-center gap-7 text-sm font-medium text-stone-600 md:flex">
-          <a href="#shop" className="hover:text-stone-900">Shop</a>
-          <a href="#how" className="hover:text-stone-900">How it works</a>
-          <a href="#report" className="hover:text-stone-900">Your skin</a>
+          <a href="#shop" className="hover:text-stone-900">Skincare</a>
+          <Link href="/fashion" className="hover:text-stone-900">Fitting room</Link>
+          <a href="#report" className="hover:text-stone-900">Your colours</a>
         </nav>
 
         <div className="flex items-center gap-2">

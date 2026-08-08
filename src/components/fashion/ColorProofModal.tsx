@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import {
   X,
   Upload,
@@ -26,15 +26,26 @@ interface Side {
   live: boolean;
 }
 
+/**
+ * Gate component. Mounting the body only while open means its state is fresh
+ * on every open, which removes the reset-on-open effect entirely - that effect
+ * was setting state synchronously during render commit and causing a second
+ * render pass every time the modal appeared.
+ */
 export function ColorProofModal() {
   const open = useFashion((s) => s.proofOpen);
+  if (!open) return null;
+  return <ColorProofModalBody />;
+}
+
+function ColorProofModalBody() {
   const close = useFashion((s) => s.closeProof);
   const userPhoto = useFashion((s) => s.userPhoto);
   const setUserPhoto = useFashion((s) => s.setUserPhoto);
   const profile = useStore((s) => s.profile);
   const tone = profile?.tone;
 
-  const [phase, setPhase] = useState<Phase>("need-photo");
+  const [phase, setPhase] = useState<Phase>(userPhoto ? "ready" : "need-photo");
   const [flat, setFlat] = useState<Side | null>(null);
   const [clash, setClash] = useState<Side | null>(null);
   const [note, setNote] = useState("");
@@ -50,15 +61,6 @@ export function ColorProofModal() {
 
   const colors = tone ? proofColors(tone) : null;
 
-  useEffect(() => {
-    if (!open) return;
-    setPhase(userPhoto ? "ready" : "need-photo");
-    setFlat(null);
-    setClash(null);
-    setNote("");
-  }, [open, userPhoto]);
-
-  if (!open) return null;
 
   async function handleFile(file: File) {
     try {
@@ -121,7 +123,7 @@ export function ColorProofModal() {
         </button>
 
         <div className="border-b border-white/10 p-5">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-fuchsia-300/80">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[#d9a679]/85">
             <Wand2 className="h-4 w-4" /> Prove it on your photo
           </div>
           <h2 className="mt-1 text-lg font-semibold">
@@ -198,7 +200,7 @@ export function ColorProofModal() {
 
             {phase === "running" && (
               <div className="flex flex-col items-center gap-3 py-16">
-                <Loader2 className="h-8 w-8 animate-spin text-fuchsia-300" />
+                <Loader2 className="h-8 w-8 animate-spin text-[#d9a679]" />
                 <p className="text-sm text-white/70">
                   Dressing you in both colours…
                 </p>

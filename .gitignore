@@ -41,6 +41,9 @@ yarn-error.log*
 /dev.log
 /dev.err
 /cf.err
+/cf.err*
+/cf.out
+/randomuser.jpg
 /variant_*.jpg
 /w1_*.jpg
 /wiki*.jpg
@@ -50,6 +53,9 @@ yarn-error.log*
 /image2*.jpg
 /selfie*.png
 /selfie*.jpg
+
+# mediapipe wasm runtime - regenerated from node_modules by scripts/copy-mediapipe.mjs
+/public/mediapipe
 
 # vercel
 .vercel
