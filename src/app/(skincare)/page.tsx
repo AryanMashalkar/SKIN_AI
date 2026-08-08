@@ -63,7 +63,7 @@ export default function Home() {
             </span>
             <div>
               <p className="text-xs font-medium uppercase tracking-wide text-white/60">
-                Also from Derma
+                Also from MIROIR
               </p>
               <h3 className="mt-0.5 text-xl font-semibold">
                 Try on the apparel collection

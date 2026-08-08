@@ -50,13 +50,26 @@ export default function FashionHome() {
     <main>
       {/* Hero */}
       <section className="relative overflow-hidden">
-        <div
-          className="absolute inset-0 -z-10 opacity-60"
-          style={{
-            background:
-              "radial-gradient(50% 60% at 75% 0%, #3b0764 0%, transparent 60%), radial-gradient(40% 50% at 0% 100%, #1e1b4b 0%, transparent 55%)",
-          }}
-        />
+        {/* Ambient ember glow. Previously purple/indigo, which read as a
+            different product from the terracotta skincare side - the two halves
+            need to share an accent family to feel like one store. */}
+        <div className="pointer-events-none absolute inset-0 -z-10" aria-hidden>
+          <div
+            className="animate-drift absolute -right-32 -top-48 h-[40rem] w-[40rem] rounded-full opacity-50 blur-3xl"
+            style={{
+              background:
+                "radial-gradient(circle, #b5451f 0%, #5c2410 45%, transparent 70%)",
+            }}
+          />
+          <div
+            className="animate-drift absolute -bottom-56 -left-40 h-[34rem] w-[34rem] rounded-full opacity-40 blur-3xl"
+            style={{
+              animationDelay: "-9s",
+              background:
+                "radial-gradient(circle, #7a4a2a 0%, #2d1c10 50%, transparent 72%)",
+            }}
+          />
+        </div>
         <div className="mx-auto max-w-6xl px-5 py-20 text-center sm:py-28">
           <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium text-white/70">
             <Sparkles className="h-3.5 w-3.5" />
@@ -113,8 +126,8 @@ export default function FashionHome() {
       <section id="shop" className="mx-auto max-w-6xl px-5 py-14">
         {/* Skin-informed styling banner — the bridge between the two APIs. */}
         {styleProfile ? (
-          <div className="mb-8 overflow-hidden rounded-3xl border border-fuchsia-400/20 bg-gradient-to-br from-fuchsia-600/15 via-violet-600/10 to-transparent p-6 sm:p-7">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-fuchsia-200/80">
+          <div className="mb-8 overflow-hidden rounded-3xl border border-[#d9a679]/25 bg-gradient-to-br from-[#b5451f]/20 via-[#d9a679]/10 to-transparent p-6 sm:p-7">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[#e9d9be]/85">
               <ScanFace className="h-4 w-4" /> Styled for your skin
             </div>
             <h2 className="mt-2 text-xl font-semibold tracking-tight sm:text-2xl">
@@ -123,7 +136,7 @@ export default function FashionHome() {
             <ul className="mt-3 space-y-1.5">
               {styleProfile.rationale.map((r, i) => (
                 <li key={i} className="flex gap-2 text-sm text-white/70">
-                  <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-fuchsia-300" />
+                  <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#d9a679]" />
                   <span>{r}</span>
                 </li>
               ))}
@@ -171,7 +184,7 @@ export default function FashionHome() {
             className="group mb-8 flex flex-col items-start justify-between gap-4 overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] p-6 transition hover:bg-white/[0.05] sm:flex-row sm:items-center"
           >
             <div className="flex items-center gap-4">
-              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-fuchsia-500/15 text-fuchsia-300">
+              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#b5451f]/25 text-[#d9a679]">
                 <ScanFace className="h-6 w-6" />
               </span>
               <div>
