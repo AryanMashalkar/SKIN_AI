@@ -17,6 +17,7 @@ import { useStore } from "@/lib/store";
 import { preprocessImage } from "@/lib/image";
 import { HAIR_OPTIONS, EYE_OPTIONS, type ColorOption } from "@/lib/appearance-options";
 import { detectAppearance } from "@/lib/appearance-sample";
+import { openCamera, waitForStableFrame, captureStill } from "@/lib/camera";
 
 type Phase = "choose" | "camera" | "preview" | "analyzing" | "error";
 
@@ -51,6 +52,7 @@ function ScanModalBody() {
   const [eyeHex, setEyeHex] = useState<string | null>(null);
   const [skinConfident, setSkinConfident] = useState(true);
   const [detecting, setDetecting] = useState(false);
+  const [warming, setWarming] = useState(false);
   const [detected, setDetected] = useState<{ hair: boolean; eye: boolean; notes: string[] } | null>(null);
   const [error, setError] = useState<string>("");
   const [step, setStep] = useState(0);
@@ -124,35 +126,44 @@ function ScanModalBody() {
 
   async function startCamera() {
     setPhase("camera");
+    setWarming(true);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: 1280, height: 1280 },
-        audio: false,
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
+      const video = videoRef.current;
+      if (!video) return;
+      streamRef.current = await openCamera(video, { facingMode: "user" });
+      // Let exposure and white balance converge before the shutter is usable.
+      // Capturing early is what produced dark, green-cast selfies - and since
+      // skin colour is measured from this frame, that corrupts the season.
+      await waitForStableFrame(video);
     } catch {
       setError("Camera access was blocked. You can upload a photo instead.");
       setPhase("error");
+    } finally {
+      setWarming(false);
     }
   }
 
   async function capture() {
     const video = videoRef.current;
     if (!video) return;
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext("2d")?.drawImage(video, 0, 0);
-    stopCamera();
-    const captured = await new Promise<Blob | null>((r) =>
-      canvas.toBlob(r, "image/jpeg", 0.95),
-    );
-    if (captured) {
-      await handleFile(new File([captured], "camera.jpg", { type: "image/jpeg" }));
+    try {
+      const shot = await captureStill(video, 0.95);
+      stopCamera();
+      if (shot.underexposed) {
+        // Do not silently measure a bad frame: an under-exposed capture gives a
+        // wrong undertone and therefore a wrong colour season.
+        setError(
+          "That looked too dark to read your colouring accurately. Face a window or turn a light on, then try again.",
+        );
+        setPhase("error");
+        return;
+      }
+      await handleFile(new File([shot.blob], "camera.jpg", { type: "image/jpeg" }));
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "Couldn't capture from the camera.",
+      );
+      setPhase("error");
     }
   }
 
@@ -307,15 +318,24 @@ function ScanModalBody() {
                   className="h-full w-full scale-x-[-1] object-cover"
                 />
                 <div className="pointer-events-none absolute inset-6 rounded-full border-2 border-dashed border-white/60" />
+                {warming && (
+                  <div className="absolute inset-0 grid place-items-center bg-stone-900/55 backdrop-blur-[2px]">
+                    <div className="flex flex-col items-center gap-2 text-white">
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                      <p className="text-xs">Letting the camera adjust…</p>
+                    </div>
+                  </div>
+                )}
               </div>
               <p className="text-center text-xs text-stone-500">
                 Fit your whole head inside the guide, shoulders visible.
               </p>
               <button
                 onClick={capture}
-                className="w-full rounded-full bg-[#b5451f] py-3 font-medium text-white transition hover:bg-[#93381a]"
+                disabled={warming}
+                className="w-full rounded-full bg-[#b5451f] py-3 font-medium text-white transition hover:bg-[#93381a] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Capture
+                {warming ? "Adjusting…" : "Capture"}
               </button>
             </div>
           )}

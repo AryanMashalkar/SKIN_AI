@@ -15,6 +15,7 @@ import { useFashion } from "@/lib/fashion/store";
 import { garmentById } from "@/lib/fashion/products";
 import { preparePhoto } from "@/lib/fashion/photo";
 import { useStore } from "@/lib/store";
+import { openCamera, waitForStableFrame, captureStill } from "@/lib/camera";
 import { styleForGarment } from "@/lib/fashion/styling";
 
 /**
@@ -56,6 +57,7 @@ function TryOnModalBody({
   const status = statusMap[tryOnFor] ?? "idle";
 
   const [camera, setCamera] = useState(false);
+  const [warming, setWarming] = useState(false);
   const [note, setNote] = useState<string>("");
   const [size, setSize] = useState<string>(garment.sizes[0] ?? "");
   const [added, setAdded] = useState(false);
@@ -88,33 +90,34 @@ function TryOnModalBody({
 
   async function startCamera() {
     setCamera(true);
+    setWarming(true);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: 1280, height: 1280 },
-        audio: false,
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
+      const video = videoRef.current;
+      if (!video) return;
+      streamRef.current = await openCamera(video, { facingMode: "user" });
+      // Same reason as the skin scan: `play()` resolving does not mean the
+      // sensor has settled, and a dark first frame makes a poor try-on source.
+      await waitForStableFrame(video);
     } catch {
       setCamera(false);
       setNote("Camera blocked — upload a photo instead.");
+    } finally {
+      setWarming(false);
     }
   }
 
   async function capture() {
     const video = videoRef.current;
     if (!video) return;
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext("2d")?.drawImage(video, 0, 0);
-    const blob = await new Promise<Blob | null>((r) =>
-      canvas.toBlob(r, "image/jpeg", 0.9),
-    );
-    if (blob) await handleFile(new File([blob], "camera.jpg", { type: "image/jpeg" }));
+    try {
+      const shot = await captureStill(video, 0.9);
+      if (shot.underexposed) {
+        setNote("That frame looked very dark — try more light for a better try-on.");
+      }
+      await handleFile(new File([shot.blob], "camera.jpg", { type: "image/jpeg" }));
+    } catch (e) {
+      setNote(e instanceof Error ? e.message : "Couldn't capture from the camera.");
+    }
   }
 
   async function runTryOn() {
@@ -176,9 +179,10 @@ function TryOnModalBody({
               </div>
               <button
                 onClick={capture}
-                className="w-full rounded-full bg-white py-2.5 text-sm font-medium text-neutral-900"
+                disabled={warming}
+                className="w-full rounded-full bg-white py-2.5 text-sm font-medium text-neutral-900 transition disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Capture
+                {warming ? "Adjusting…" : "Capture"}
               </button>
             </div>
           ) : userPhoto ? (

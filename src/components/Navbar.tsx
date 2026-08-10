@@ -9,7 +9,9 @@ export function Navbar() {
   const cart = useStore((s) => s.cart);
   const openCart = useStore((s) => s.openCart);
   const openScan = useStore((s) => s.openScan);
+  const profile = useStore((s) => s.profile);
   const hydrated = useHydrated();
+  const hasProfile = hydrated && !!profile;
   const count = hydrated ? cartCount(cart) : 0;
 
   return (
@@ -27,7 +29,16 @@ export function Navbar() {
         <nav className="hidden items-center gap-7 text-sm font-medium text-stone-600 md:flex">
           <a href="#shop" className="hover:text-stone-900">Skincare</a>
           <Link href="/fashion" className="hover:text-stone-900">Fitting room</Link>
-          <a href="#report" className="hover:text-stone-900">Your colours</a>
+          {/* #report only exists once a scan has produced a profile, so before
+              that this link went nowhere. Send the user to the thing that
+              creates it instead of silently doing nothing. */}
+          {hasProfile ? (
+            <a href="#report" className="hover:text-stone-900">Your colours</a>
+          ) : (
+            <button onClick={openScan} className="hover:text-stone-900">
+              Your colours
+            </button>
+          )}
         </nav>
 
         <div className="flex items-center gap-2">
