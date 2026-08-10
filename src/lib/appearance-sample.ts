@@ -116,6 +116,35 @@ const deltaE = (a: Lab, b: Lab) =>
   Math.sqrt((a.L - b.L) ** 2 + (a.a - b.a) ** 2 + (a.b - b.b) ** 2);
 
 /**
+ * MediaPipe's WASM build logs TFLite startup notices ("INFO: Created TensorFlow
+ * Lite XNNPACK delegate for CPU") to stderr. Emscripten maps stderr to
+ * console.error, and Next's dev overlay surfaces anything on console.error as a
+ * red "Console Error" - so a perfectly healthy first detection looks like a
+ * crash to anyone running `npm run dev`.
+ *
+ * This filters ONLY those known-benign notices, for the duration of one call,
+ * and restores console.error in a finally so genuine errors are never hidden.
+ * Anything that is not a recognised INFO/WARNING banner passes straight
+ * through.
+ */
+function withoutBenignWasmLogs<T>(fn: () => T): T {
+  const original = console.error;
+  const BENIGN = /^\s*(INFO|WARNING):|XNNPACK|TensorFlow Lite|Created TensorFlow/i;
+
+  console.error = (...args: unknown[]) => {
+    const first = args[0];
+    if (typeof first === "string" && BENIGN.test(first)) return;
+    original(...args);
+  };
+
+  try {
+    return fn();
+  } finally {
+    console.error = original;
+  }
+}
+
+/**
  * Snaps a measured colour to the nearest catalogued pigment option.
  *
  * Exported for testing: this is where noisy CV output gets quantised into a
@@ -152,7 +181,9 @@ export async function detectAppearance(
 
   let landmarks: Array<{ x: number; y: number }> | undefined;
   try {
-    landmarks = landmarker.detect(source).faceLandmarks?.[0];
+    landmarks = withoutBenignWasmLogs(
+      () => landmarker.detect(source).faceLandmarks?.[0],
+    );
   } catch {
     /* fall through */
   }
