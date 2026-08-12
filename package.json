@@ -2,6 +2,9 @@
   "name": "miroir",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22.6"
+  },
   "scripts": {
     "dev": "npm run assets && next dev",
     "assets": "node scripts/copy-mediapipe.mjs",

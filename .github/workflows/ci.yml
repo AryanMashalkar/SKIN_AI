@@ -14,8 +14,17 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # Must match the version the test suite is developed against. The
+          # suite runs TypeScript directly via Node's type stripping, whose
+          # behaviour differs across major versions, so a mismatch here fails
+          # in CI while passing locally.
+          node-version: 24
           cache: npm
+
+      - name: Versions
+        run: |
+          node --version
+          npm --version
 
       - name: Install
         run: npm ci
