@@ -151,10 +151,14 @@ function ScanModalBody() {
       // Capturing early is what produced dark, green-cast selfies - and since
       // skin colour is measured from this frame, that corrupts the season.
       await waitForStableFrame(video);
-    } catch {
+    } catch (e) {
       // Never leak the camera if we bailed after acquiring it.
       if (stream && streamRef.current !== stream) stopStream(stream);
-      setError("Camera access was blocked. You can upload a photo instead.");
+      setError(
+        e instanceof Error && e.message
+          ? e.message
+          : "Camera access was blocked. You can upload a photo instead.",
+      );
       setPhase("error");
     } finally {
       setWarming(false);

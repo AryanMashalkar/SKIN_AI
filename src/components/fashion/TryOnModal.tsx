@@ -111,11 +111,15 @@ function TryOnModalBody({
       // `play()` resolving does not mean the sensor has settled; a dark first
       // frame makes a poor try-on source.
       await waitForStableFrame(video);
-    } catch {
+    } catch (e) {
       // Never leak the camera if we bailed after acquiring it.
       if (stream && streamRef.current !== stream) stopStream(stream);
       setCamera(false);
-      setNote("Camera unavailable — upload a photo instead.");
+      setNote(
+        e instanceof Error && e.message
+          ? e.message
+          : "Camera unavailable — upload a photo instead.",
+      );
     } finally {
       setWarming(false);
     }

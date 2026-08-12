@@ -72,6 +72,18 @@ export interface OpenCameraOptions {
 export async function requestCameraStream({
   facingMode = "user",
 }: OpenCameraOptions = {}): Promise<MediaStream> {
+  // getUserMedia is gated on a secure context. Over http:// on a LAN address -
+  // which is exactly how a phone reaches `next dev` via the printed Network URL
+  // - `navigator.mediaDevices` is UNDEFINED rather than merely blocked, so the
+  // failure surfaces as an opaque TypeError. Detect it and say what to do.
+  if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+    throw new Error(
+      window.isSecureContext === false
+        ? "The camera needs a secure (https) connection. On a phone, open the https tunnel URL rather than the http LAN address — or upload a photo instead."
+        : "This browser doesn't support camera capture — upload a photo instead.",
+    );
+  }
+
   return navigator.mediaDevices.getUserMedia({
     video: {
       // `ideal`, not exact: the previous code asked for a 1280x1280 square,
