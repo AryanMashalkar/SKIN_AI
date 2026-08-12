@@ -277,7 +277,7 @@ function ProofSide({
 }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-white/10 bg-neutral-800">
-      <div className="relative aspect-[3/4]">
+      <div className="relative aspect-[3/4] max-h-[46dvh] overflow-hidden rounded-xl">
         {side ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={side.url} alt={title} className="h-full w-full object-cover" />

@@ -184,7 +184,7 @@ function TryOnModalBody({
 
           {camera ? (
             <div className="mt-3 space-y-3">
-              <div className="relative aspect-[3/4] overflow-hidden rounded-2xl bg-black">
+              <div className="relative aspect-[3/4] max-h-[42dvh] overflow-hidden rounded-2xl bg-black">
                 <video
                   ref={videoRef}
                   playsInline
@@ -219,7 +219,7 @@ function TryOnModalBody({
             </div>
           ) : userPhoto ? (
             <div className="mt-3 space-y-3">
-              <div className="aspect-[3/4] overflow-hidden rounded-2xl bg-neutral-800">
+              <div className="aspect-[3/4] max-h-[42dvh] overflow-hidden rounded-2xl bg-neutral-800">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={userPhoto.previewUrl}
@@ -297,7 +297,7 @@ function TryOnModalBody({
             </p>
           )}
 
-          <div className="relative mt-3 aspect-[3/4] overflow-hidden rounded-2xl bg-neutral-800">
+          <div className="relative mt-3 aspect-[3/4] max-h-[42dvh] overflow-hidden rounded-2xl bg-neutral-800">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={result || garment.image}
