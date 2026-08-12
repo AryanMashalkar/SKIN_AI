@@ -184,13 +184,30 @@ function TryOnModalBody({
 
           {camera ? (
             <div className="mt-3 space-y-3">
-              <div className="aspect-[3/4] overflow-hidden rounded-2xl bg-black">
+              <div className="relative aspect-[3/4] overflow-hidden rounded-2xl bg-black">
                 <video
                   ref={videoRef}
                   playsInline
                   muted
                   className="h-full w-full scale-x-[-1] object-cover"
                 />
+                {/* Framing guide. Apparel VTO places a garment on a torso, so a
+                    head-and-shoulders crop gives it almost nothing to work
+                    with - the usual result is an image that comes back looking
+                    unchanged. A laptop webcam at typing distance produces
+                    exactly that crop, so the guide has to be explicit. */}
+                <div className="pointer-events-none absolute inset-x-[14%] inset-y-[10%] rounded-xl border-2 border-dashed border-white/50" />
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3 text-center">
+                  <p className="text-[11px] leading-snug text-white/85">
+                    Step back so your <strong>whole torso</strong> fits the box —
+                    head to waist, arms slightly out.
+                  </p>
+                </div>
+                {warming && (
+                  <div className="absolute inset-0 grid place-items-center bg-black/60 backdrop-blur-[2px]">
+                    <p className="text-xs text-white/80">Letting the camera adjust…</p>
+                  </div>
+                )}
               </div>
               <button
                 onClick={capture}
@@ -219,10 +236,21 @@ function TryOnModalBody({
             </div>
           ) : (
             <div className="mt-3 flex flex-1 flex-col justify-center gap-3">
-              <p className="text-sm text-white/50">
-                Use a clear, front-facing photo showing your upper or full body,
-                arms slightly away from your sides.
-              </p>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                <p className="text-xs font-semibold text-white/80">
+                  For a good try-on
+                </p>
+                <ul className="mt-1.5 space-y-1 text-xs leading-snug text-white/50">
+                  <li>• Head to waist in frame — not a close-up of your face</li>
+                  <li>• Arms slightly away from your sides</li>
+                  <li>• Bright, even light and a plain wall behind you</li>
+                </ul>
+                <p className="mt-2 border-t border-white/10 pt-2 text-[11px] leading-snug text-white/40">
+                  A laptop webcam at desk distance only captures head and
+                  shoulders, which the AI can&apos;t dress — use your phone, or
+                  step back.
+                </p>
+              </div>
               <button
                 onClick={startCamera}
                 className="flex items-center gap-3 rounded-2xl border border-white/15 p-3 text-left transition hover:bg-white/5"
