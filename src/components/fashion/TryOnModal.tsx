@@ -167,7 +167,7 @@ function TryOnModalBody({
   return (
     <div className="fixed inset-0 z-50 grid place-items-center p-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={close} />
-      <div className="relative z-10 grid w-full max-w-3xl animate-float-in grid-cols-1 overflow-hidden rounded-3xl bg-neutral-900 text-white shadow-2xl md:grid-cols-2">
+      <div className="relative z-10 grid max-h-[92dvh] w-full max-w-3xl animate-float-in grid-cols-1 overflow-hidden rounded-3xl bg-neutral-900 text-white shadow-2xl md:grid-cols-2">
         <button
           onClick={close}
           aria-label="Close try-on"
@@ -177,7 +177,7 @@ function TryOnModalBody({
         </button>
 
         {/* Left: your photo */}
-        <div className="flex flex-col border-b border-white/10 p-5 md:border-b-0 md:border-r">
+        <div className="flex min-h-0 flex-col overflow-y-auto border-b border-white/10 p-5 md:border-b-0 md:border-r">
           <p className="text-xs font-semibold uppercase tracking-wide text-white/40">
             Your photo
           </p>
@@ -280,7 +280,7 @@ function TryOnModalBody({
         </div>
 
         {/* Right: garment + result */}
-        <div className="flex flex-col p-5">
+        <div className="flex min-h-0 flex-col overflow-y-auto p-5">
           <p className="text-xs uppercase tracking-wide text-white/40">
             {garment.brand} · {garment.category}
           </p>

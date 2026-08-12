@@ -113,7 +113,7 @@ function ColorProofModalBody() {
   return (
     <div className="fixed inset-0 z-[60] grid place-items-center p-4">
       <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={close} />
-      <div className="relative z-10 w-full max-w-3xl animate-float-in overflow-hidden rounded-3xl bg-neutral-900 text-white shadow-2xl">
+      <div className="relative z-10 flex max-h-[92dvh] w-full max-w-3xl animate-float-in flex-col overflow-y-auto rounded-3xl bg-neutral-900 text-white shadow-2xl">
         <button
           onClick={close}
           aria-label="Close proof"

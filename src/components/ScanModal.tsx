@@ -220,9 +220,13 @@ function ScanModalBody() {
         className="absolute inset-0 bg-stone-900/50 backdrop-blur-sm"
         onClick={close}
       />
-      <div className="relative z-10 w-full max-w-md animate-float-in overflow-hidden rounded-3xl bg-white shadow-2xl">
+      {/* The shell is capped to the viewport and lays out as a column: a fixed
+          header with a scrollable body. Without this the preview image plus the
+          hair/eye swatches overflow the bottom of the screen on laptops, and
+          the Analyze button becomes unreachable. */}
+      <div className="relative z-10 flex max-h-[92dvh] w-full max-w-md animate-float-in flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-stone-100 px-5 py-4">
+        <div className="flex shrink-0 items-center justify-between border-b border-stone-100 px-5 py-4">
           <div className="flex items-center gap-2">
             <ScanFace className="h-5 w-5 text-[#b5451f]" />
             <h2 className="font-semibold text-stone-900">AI Skin Analysis</h2>
@@ -236,7 +240,7 @@ function ScanModalBody() {
           </button>
         </div>
 
-        <div className="p-5">
+        <div className="min-h-0 flex-1 overflow-y-auto p-5">
           {phase === "choose" && (
             <div className="space-y-3">
               <p className="text-sm text-stone-500">
@@ -326,7 +330,7 @@ function ScanModalBody() {
 
           {phase === "camera" && (
             <div className="space-y-3">
-              <div className="relative aspect-square overflow-hidden rounded-2xl bg-stone-900">
+              <div className="relative max-h-[42dvh] aspect-square overflow-hidden rounded-2xl bg-stone-900">
                 <video
                   ref={videoRef}
                   playsInline
@@ -363,7 +367,7 @@ function ScanModalBody() {
                 <img
                   src={preview}
                   alt="Your scan preview"
-                  className="aspect-[3/4] w-full object-cover"
+                  className="max-h-[38dvh] w-full rounded-2xl object-cover"
                 />
               </div>
               <div className="rounded-2xl border border-stone-200 bg-stone-50/60 p-3">
@@ -489,7 +493,7 @@ function SwatchRow({
               title={o.label}
               aria-label={o.label}
               aria-pressed={active}
-              className={`h-7 w-7 rounded-full border-2 transition ${
+              className={`h-6 w-6 shrink-0 rounded-full border-2 transition ${
                 active
                   ? "border-[#b5451f] ring-2 ring-[#e9d9be]"
                   : "border-stone-200 hover:border-stone-400"
