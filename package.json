@@ -10,7 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint src scripts",
-    "test": "node --experimental-strip-types scripts/color.test.mjs && node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/season.test.mjs && node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/agreement.test.mjs && node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/cart.test.mjs && node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/rate-limit.test.mjs && node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/domain.test.mjs",
+    "test": "node --experimental-strip-types scripts/color.test.mjs && node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/season.test.mjs && node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/agreement.test.mjs && node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/cart.test.mjs && node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/rate-limit.test.mjs && node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/white-balance.test.mjs && node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/domain.test.mjs",
     "agreement": "node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/agreement.mjs",
     "validate:season": "node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/validate-season.mjs",
     "calibrate:season": "node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/calibrate-season.mjs",

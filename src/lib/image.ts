@@ -5,6 +5,8 @@
 // so we center-crop to a 3:4 portrait, normalize resolution, and re-encode as
 // clean JPEG before uploading.
 
+import { normalizeIllumination, type IlluminationFix } from "@/lib/white-balance";
+
 const TARGET_ASPECT = 3 / 4; // width / height (portrait)
 // Perfect Corp's skin analysis needs a high-resolution face that fills a good
 // portion of the frame (head-and-shoulders), or it rejects with
@@ -76,6 +78,8 @@ export interface Processed {
   skinConfident: boolean;
   /** The rendered canvas, reused for optional hair/eye detection. */
   canvas: HTMLCanvasElement;
+  /** What illuminant correction had to be applied to make this measurable. */
+  light: IlluminationFix;
 }
 
 /** Is a pixel plausibly facial skin? Broad across skin depths; rejects
@@ -173,24 +177,36 @@ export async function preprocessImage(file: File): Promise<Processed> {
   const canvas = document.createElement("canvas");
   canvas.width = outW;
   canvas.height = outH;
-  const ctx = canvas.getContext("2d");
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
   if (!ctx) throw new Error("Canvas 2D context unavailable");
   ctx.imageSmoothingQuality = "high";
   ctx.drawImage(bitmap, cropX, cropY, cropW, cropH, 0, 0, outW, outH);
 
+  // Neutralise the room light BEFORE anything reads colour off this canvas.
+  // Undertone comes from the a*/b* balance, so an uncorrected green cast from
+  // indoor lighting shifts the reading cool and can flip the reported season.
+  // The correction is applied to the pixels that get sampled AND to the JPEG
+  // sent upstream, so both see the same, corrected image.
+  const light = normalizeIllumination(ctx, outW, outH);
+
   const blob = await encodeWithinLimit(canvas, JPEG_QUALITY);
 
   const skin = sampleSkinHex(ctx, outW, outH);
+  // Confidence is reduced when the answer leans on a heavy correction: a strong
+  // colour cast or a big exposure lift means we recovered a usable reading
+  // rather than measured a clean one.
+  const heavilyCorrected = light.castStrength > 0.55 || light.exposureGain > 1.8;
   return {
     blob,
     canvas,
+    light,
     previewUrl: canvas.toDataURL("image/jpeg", 0.8),
     width: outW,
     height: outH,
     skinHex: skin?.hex ?? null,
     // Below ~15% skin coverage in the face window suggests poor lighting,
     // occlusion, or the face not filling the frame.
-    skinConfident: skin ? skin.ratio >= 0.15 : false,
+    skinConfident: (skin ? skin.ratio >= 0.15 : false) && !heavilyCorrected,
   };
 }
 

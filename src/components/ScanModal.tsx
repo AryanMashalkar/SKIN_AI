@@ -60,6 +60,7 @@ function ScanModalBody() {
   const [skinConfident, setSkinConfident] = useState(true);
   const [detecting, setDetecting] = useState(false);
   const [warming, setWarming] = useState(false);
+  const [light, setLight] = useState<{ castStrength: number; exposureGain: number } | null>(null);
   const [detected, setDetected] = useState<{ hair: boolean; eye: boolean; notes: string[] } | null>(null);
   const [error, setError] = useState<string>("");
   const [step, setStep] = useState(0);
@@ -104,6 +105,7 @@ function ScanModalBody() {
       setBlob(processed.blob);
       setSkinHex(processed.skinHex);
       setSkinConfident(processed.skinConfident);
+      setLight(processed.light);
       setPhase("preview");
 
       // Optional convenience: try to pre-select the hair/eye swatches. This is
@@ -379,6 +381,17 @@ function ScanModalBody() {
                   Colour season is judged on all three together. Skip this and we
                   analyse from skin alone, with lower confidence.
                 </p>
+
+                {/* Say when the reading leaned on a correction. The scan still
+                    works in a dim room - but the user should know the answer
+                    was recovered rather than cleanly measured. */}
+                {light && (light.castStrength > 0.35 || light.exposureGain > 1.4) && (
+                  <p className="mt-1.5 rounded-lg bg-amber-50 px-2.5 py-1.5 text-[11px] leading-snug text-amber-700">
+                    Your lighting looked dim or colour-tinted, so we corrected
+                    for it before measuring. The reading is usable — daylight
+                    would make it more certain.
+                  </p>
+                )}
 
                 {detecting && (
                   <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-stone-400">

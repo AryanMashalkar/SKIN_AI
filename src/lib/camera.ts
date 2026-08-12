@@ -47,8 +47,15 @@ export interface CaptureResult {
   underexposed: boolean;
 }
 
-/** Below this the colour reading is not trustworthy. */
-const MIN_LUMA = 55;
+/**
+ * Below this a frame is rejected outright.
+ *
+ * Deliberately low, because the pipeline now white-balances and lifts exposure
+ * (see lib/white-balance.ts) — frames that used to be unusable are recoverable.
+ * Under roughly 32 even the maximum 2.2x lift lands short of a usable level and
+ * is amplifying sensor noise rather than signal, so correction cannot save it.
+ */
+const MIN_LUMA = 32;
 
 export interface OpenCameraOptions {
   facingMode?: "user" | "environment";
