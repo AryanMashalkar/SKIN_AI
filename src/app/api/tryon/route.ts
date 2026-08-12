@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
       source: "mock",
       note: !hasVtoKey()
         ? "PERFECTCORP_API_KEY not set — showing garment preview."
-        : "No public host for images (deploy, or set a PUBLIC_BASE_URL tunnel in dev) — showing garment preview.",
+        : "Apparel VTO needs to fetch your photo over HTTPS, and this server isn't publicly reachable — showing garment preview. Locally, run `npm run dev:live` to start a tunnel.",
     });
   }
 
@@ -155,10 +155,17 @@ export async function POST(req: NextRequest) {
       const which = [!srcOk ? "your photo" : null, !refOk ? "the garment image" : null]
         .filter(Boolean)
         .join(" and ");
+      // Locally this almost always means PUBLIC_BASE_URL points at a tunnel
+      // that is no longer running - a stale URL left in .env.local by an
+      // earlier session. Say so, because "couldn't reach it" alone gives the
+      // developer nothing to act on. Only in dev: the hint names internals.
+      const hint = onVercel()
+        ? ""
+        : " The dev tunnel at PUBLIC_BASE_URL looks dead — run `npm run dev:live` to start a fresh one.";
       return json({
         resultUrl: garmentImageDataUrl || garment.image,
         source: "mock",
-        note: `Couldn't reach ${which} at a public URL — showing garment preview.`,
+        note: `Couldn't reach ${which} at a public URL — showing garment preview.${hint}`,
       });
     }
 
