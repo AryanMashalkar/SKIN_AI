@@ -41,33 +41,20 @@
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
-  /* Stops the aurora layers from causing a horizontal scrollbar. */
-  overflow-x: hidden;
-}
 
-/* ---------------------------------------------------------------------------
-   Texture
-   A flat hex fill reads as "unfinished template". A very low-opacity grain
-   over the whole page is the cheapest way to make a background feel like
-   paper. Fixed attachment so it does not swim while scrolling.
---------------------------------------------------------------------------- */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  opacity: 0.035;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-
-/* Everything real sits above the grain. */
-body > * {
-  position: relative;
-  z-index: 1;
+  /* Film grain.
+     Applied as a background layer on body rather than a fixed ::before
+     overlay. The overlay version needed `body > * { position: relative;
+     z-index: 1 }` to sit behind content - and because Tailwind utilities live
+     in @layer utilities, that UNLAYERED rule outranked `.fixed` and `.z-50`,
+     silently turning every modal and drawer into an inline block in the
+     document flow. Opacity is baked into the SVG so no stacking games are
+     needed. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  background-attachment: fixed;
 }
 
 /* Visible keyboard focus for accessibility (mouse clicks stay ring-free). */
