@@ -15,7 +15,14 @@ import { useFashion } from "@/lib/fashion/store";
 import { garmentById } from "@/lib/fashion/products";
 import { preparePhoto } from "@/lib/fashion/photo";
 import { useStore } from "@/lib/store";
-import { openCamera, waitForStableFrame, captureStill } from "@/lib/camera";
+import {
+  requestCameraStream,
+  waitForVideoElement,
+  attachStream,
+  waitForStableFrame,
+  captureStill,
+  stopStream,
+} from "@/lib/camera";
 import { styleForGarment } from "@/lib/fashion/styling";
 
 /**
@@ -67,7 +74,7 @@ function TryOnModalBody({
   const streamRef = useRef<MediaStream | null>(null);
 
   const stopCamera = useCallback(() => {
-    streamRef.current?.getTracks().forEach((t) => t.stop());
+    stopStream(streamRef.current);
     streamRef.current = null;
   }, []);
 
@@ -91,16 +98,24 @@ function TryOnModalBody({
   async function startCamera() {
     setCamera(true);
     setWarming(true);
+    let stream: MediaStream | null = null;
     try {
-      const video = videoRef.current;
-      if (!video) return;
-      streamRef.current = await openCamera(video, { facingMode: "user" });
-      // Same reason as the skin scan: `play()` resolving does not mean the
-      // sensor has settled, and a dark first frame makes a poor try-on source.
+      // Request first: this is the slow step, and it also gives React time to
+      // commit the <video> that `setCamera(true)` just scheduled.
+      stream = await requestCameraStream({ facingMode: "user" });
+      const video = await waitForVideoElement(videoRef);
+      if (!video) throw new Error("Camera preview failed to mount.");
+
+      streamRef.current = stream;
+      await attachStream(video, stream);
+      // `play()` resolving does not mean the sensor has settled; a dark first
+      // frame makes a poor try-on source.
       await waitForStableFrame(video);
     } catch {
+      // Never leak the camera if we bailed after acquiring it.
+      if (stream && streamRef.current !== stream) stopStream(stream);
       setCamera(false);
-      setNote("Camera blocked — upload a photo instead.");
+      setNote("Camera unavailable — upload a photo instead.");
     } finally {
       setWarming(false);
     }

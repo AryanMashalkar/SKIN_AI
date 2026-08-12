@@ -17,7 +17,14 @@ import { useStore } from "@/lib/store";
 import { preprocessImage } from "@/lib/image";
 import { HAIR_OPTIONS, EYE_OPTIONS, type ColorOption } from "@/lib/appearance-options";
 import { detectAppearance } from "@/lib/appearance-sample";
-import { openCamera, waitForStableFrame, captureStill } from "@/lib/camera";
+import {
+  requestCameraStream,
+  waitForVideoElement,
+  attachStream,
+  waitForStableFrame,
+  captureStill,
+  stopStream,
+} from "@/lib/camera";
 
 type Phase = "choose" | "camera" | "preview" | "analyzing" | "error";
 
@@ -62,7 +69,7 @@ function ScanModalBody() {
   const streamRef = useRef<MediaStream | null>(null);
 
   const stopCamera = useCallback(() => {
-    streamRef.current?.getTracks().forEach((t) => t.stop());
+    stopStream(streamRef.current);
     streamRef.current = null;
   }, []);
 
@@ -127,15 +134,24 @@ function ScanModalBody() {
   async function startCamera() {
     setPhase("camera");
     setWarming(true);
+    let stream: MediaStream | null = null;
     try {
-      const video = videoRef.current;
-      if (!video) return;
-      streamRef.current = await openCamera(video, { facingMode: "user" });
+      // Request first: this is the slow step, and it also gives React time to
+      // commit the <video> that `setPhase("camera")` just scheduled. Reading
+      // the ref before this await returns null and silently kills the preview.
+      stream = await requestCameraStream({ facingMode: "user" });
+      const video = await waitForVideoElement(videoRef);
+      if (!video) throw new Error("Camera preview failed to mount.");
+
+      streamRef.current = stream;
+      await attachStream(video, stream);
       // Let exposure and white balance converge before the shutter is usable.
       // Capturing early is what produced dark, green-cast selfies - and since
       // skin colour is measured from this frame, that corrupts the season.
       await waitForStableFrame(video);
     } catch {
+      // Never leak the camera if we bailed after acquiring it.
+      if (stream && streamRef.current !== stream) stopStream(stream);
       setError("Camera access was blocked. You can upload a photo instead.");
       setPhase("error");
     } finally {

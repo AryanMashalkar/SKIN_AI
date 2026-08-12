@@ -55,30 +55,61 @@ export interface OpenCameraOptions {
 }
 
 /**
- * Requests the camera and attaches it to a video element.
+ * Requests the camera.
  *
- * Constraints are `ideal`, not exact: the previous code asked for a 1280x1280
- * square, which few cameras natively provide, so the browser silently
- * substituted something else anyway.
+ * Deliberately separate from attaching it to an element. Callers show the
+ * camera UI, which mounts the <video>, and React has not committed that DOM by
+ * the time the call returns - so a combined "open and attach" helper invites
+ * reading a ref that is still null. Request first, attach second.
  */
-export async function openCamera(
-  video: HTMLVideoElement,
-  { facingMode = "user" }: OpenCameraOptions = {},
-): Promise<MediaStream> {
-  const stream = await navigator.mediaDevices.getUserMedia({
+export async function requestCameraStream({
+  facingMode = "user",
+}: OpenCameraOptions = {}): Promise<MediaStream> {
+  return navigator.mediaDevices.getUserMedia({
     video: {
+      // `ideal`, not exact: the previous code asked for a 1280x1280 square,
+      // which few cameras natively provide, so the browser silently
+      // substituted something else anyway.
       facingMode: { ideal: facingMode },
       width: { ideal: 1440 },
       height: { ideal: 1440 },
     },
     audio: false,
   });
+}
 
+/**
+ * Waits for a conditionally-rendered <video> to actually exist.
+ *
+ * Guards the exact race above: setState schedules the render, it does not
+ * perform it, so the ref is null on the very next line.
+ */
+export async function waitForVideoElement(
+  ref: { current: HTMLVideoElement | null },
+  timeoutMs = 3000,
+): Promise<HTMLVideoElement | null> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (ref.current) return ref.current;
+    await new Promise((r) => requestAnimationFrame(() => r(null)));
+  }
+  return ref.current;
+}
+
+/** Attaches a stream to a video element and begins playback. */
+export async function attachStream(
+  video: HTMLVideoElement,
+  stream: MediaStream,
+): Promise<void> {
   video.srcObject = stream;
   video.muted = true;
   video.playsInline = true;
   await video.play();
-  return stream;
+}
+
+/** Releases every track on a stream. */
+export function stopStream(stream: MediaStream | null): void {
+  stream?.getTracks().forEach((t) => t.stop());
 }
 
 /** Resolves once the element reports real dimensions. */
