@@ -51,6 +51,17 @@ let landmarkerPromise: Promise<Landmarker | null> | null = null;
 async function getLandmarker(): Promise<Landmarker | null> {
   if (!landmarkerPromise) {
     landmarkerPromise = (async () => {
+      // Emscripten captures its stderr sink once, at module-init time
+      // (`var err = console.error.bind(console)`), which happens inside
+      // createFromOptions. Filtering at detect() time therefore patched a
+      // binding MediaPipe never reads - the notices kept coming through.
+      //
+      // Installing the filter around initialisation means Emscripten binds the
+      // FILTERED function permanently, while the global console.error is put
+      // back immediately afterwards. Net effect: MediaPipe's stderr is filtered
+      // for the life of the page, and nothing else is touched.
+      const original = console.error;
+      console.error = filteredError(original);
       try {
         // Dynamic import: ~155 KB of JS plus WASM that most sessions never need.
         const vision = await import("@mediapipe/tasks-vision");
@@ -62,6 +73,8 @@ async function getLandmarker(): Promise<Landmarker | null> {
         })) as unknown as Landmarker;
       } catch {
         return null; // model or WASM unavailable - fall back to manual pickers
+      } finally {
+        console.error = original;
       }
     })();
   }
@@ -116,27 +129,34 @@ const deltaE = (a: Lab, b: Lab) =>
   Math.sqrt((a.L - b.L) ** 2 + (a.a - b.a) ** 2 + (a.b - b.b) ** 2);
 
 /**
- * MediaPipe's WASM build logs TFLite startup notices ("INFO: Created TensorFlow
- * Lite XNNPACK delegate for CPU") to stderr. Emscripten maps stderr to
- * console.error, and Next's dev overlay surfaces anything on console.error as a
- * red "Console Error" - so a perfectly healthy first detection looks like a
- * crash to anyone running `npm run dev`.
+ * MediaPipe's WASM build reports startup state on stderr, which Emscripten maps
+ * to console.error and Next's dev overlay then surfaces as a red "Console
+ * Error" - so a completely healthy first detection looks like a crash.
  *
- * This filters ONLY those known-benign notices, for the duration of one call,
- * and restores console.error in a finally so genuine errors are never hidden.
- * Anything that is not a recognised INFO/WARNING banner passes straight
- * through.
+ * Deliberately keyed on MediaPipe/TFLite markers rather than on generic
+ * "INFO:"/"WARNING:" prefixes. Matching bare prefixes would swallow legitimate
+ * `Warning: ...` messages from React and other libraries, which is a far worse
+ * outcome than a noisy line. Two shapes are covered: TFLite banners, and
+ * glog-style lines such as "W0812 06:20:31.228000 ... gl_context.cc:1119]".
+ */
+const BENIGN_WASM_LOG =
+  /^[WIE]\d{4}\s\d{2}:\d{2}:\d{2}|XNNPACK|TensorFlow Lite|gl_context\.cc|face_landmarker_graph\.cc|landmark_projection_calculator/i;
+
+function filteredError(original: typeof console.error) {
+  return (...args: unknown[]) => {
+    const first = args[0];
+    if (typeof first === "string" && BENIGN_WASM_LOG.test(first)) return;
+    original(...args);
+  };
+}
+
+/**
+ * Belt and braces for any stderr emitted during detection rather than during
+ * initialisation. Restores console.error in a finally.
  */
 function withoutBenignWasmLogs<T>(fn: () => T): T {
   const original = console.error;
-  const BENIGN = /^\s*(INFO|WARNING):|XNNPACK|TensorFlow Lite|Created TensorFlow/i;
-
-  console.error = (...args: unknown[]) => {
-    const first = args[0];
-    if (typeof first === "string" && BENIGN.test(first)) return;
-    original(...args);
-  };
-
+  console.error = filteredError(original);
   try {
     return fn();
   } finally {
