@@ -14,6 +14,29 @@ export function Navbar() {
   const hasProfile = hydrated && !!profile;
   const count = hydrated ? cartCount(cart) : 0;
 
+  const links = (
+    <>
+      <a href="#shop" className="whitespace-nowrap hover:text-stone-900">
+        Skincare
+      </a>
+      <Link href="/fashion" className="whitespace-nowrap hover:text-stone-900">
+        Fitting room
+      </Link>
+      {/* #report only exists once a scan has produced a profile, so before
+          that this link went nowhere. Send the user to the thing that
+          creates it instead of silently doing nothing. */}
+      {hasProfile ? (
+        <a href="#report" className="whitespace-nowrap hover:text-stone-900">
+          Your colours
+        </a>
+      ) : (
+        <button onClick={openScan} className="whitespace-nowrap hover:text-stone-900">
+          Your colours
+        </button>
+      )}
+    </>
+  );
+
   return (
     <header className="sticky top-0 z-40 border-b border-stone-300/50 bg-[#f4f0e6]/80 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5">
@@ -27,32 +50,25 @@ export function Navbar() {
         </Link>
 
         <nav className="hidden items-center gap-7 text-sm font-medium text-stone-600 md:flex">
-          <a href="#shop" className="hover:text-stone-900">Skincare</a>
-          <Link href="/fashion" className="hover:text-stone-900">Fitting room</Link>
-          {/* #report only exists once a scan has produced a profile, so before
-              that this link went nowhere. Send the user to the thing that
-              creates it instead of silently doing nothing. */}
-          {hasProfile ? (
-            <a href="#report" className="hover:text-stone-900">Your colours</a>
-          ) : (
-            <button onClick={openScan} className="hover:text-stone-900">
-              Your colours
-            </button>
-          )}
+          {links}
         </nav>
 
         <div className="flex items-center gap-2">
+          {/* The primary CTA was hidden below sm, which left a phone with just a
+              logo and a cart. It is now always present, collapsing to an icon
+              on the narrowest screens rather than disappearing. */}
           <button
             onClick={openScan}
-            className="hidden items-center gap-2 rounded-full bg-stone-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800 sm:flex"
+            aria-label="Scan my skin"
+            className="flex items-center gap-2 rounded-full bg-stone-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-stone-800 sm:px-4"
           >
-            <ScanFace className="h-4 w-4" />
-            Scan my skin
+            <ScanFace className="h-4 w-4 shrink-0" />
+            <span className="hidden sm:inline">Scan my skin</span>
           </button>
           <button
             onClick={openCart}
             aria-label="Open cart"
-            className="relative grid h-10 w-10 place-items-center rounded-full border border-stone-300 text-stone-700 transition hover:bg-white/60"
+            className="relative grid h-10 w-10 shrink-0 place-items-center rounded-full border border-stone-300 text-stone-700 transition hover:bg-white/60"
           >
             <ShoppingBag className="h-5 w-5" />
             {count > 0 && (
@@ -63,6 +79,12 @@ export function Navbar() {
           </button>
         </div>
       </div>
+
+      {/* Mobile navigation. A second row keeps the links reachable without a
+          hamburger, which would add state and a focus trap for three links. */}
+      <nav className="flex items-center gap-6 overflow-x-auto border-t border-stone-300/40 px-5 py-2.5 text-sm font-medium text-stone-600 md:hidden">
+        {links}
+      </nav>
     </header>
   );
 }

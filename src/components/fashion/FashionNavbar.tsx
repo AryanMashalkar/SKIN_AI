@@ -15,17 +15,21 @@ export function FashionNavbar() {
     <header className="sticky top-0 z-40 border-b border-white/10 bg-neutral-950/80 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5">
         <div className="flex items-center gap-5">
+          {/* Back to the skincare half. Was hidden below sm, which stranded
+              phone users in the fitting room with no route out. */}
           <Link
             href="/"
-            className="hidden items-center gap-1.5 text-xs font-medium text-white/50 transition hover:text-white sm:flex"
+            aria-label="Back to skincare"
+            className="flex items-center gap-1.5 text-xs font-medium text-white/50 transition hover:text-white"
           >
-            <ArrowLeft className="h-3.5 w-3.5" /> Skincare
+            <ArrowLeft className="h-3.5 w-3.5 shrink-0" />
+            <span className="hidden sm:inline">Skincare</span>
           </Link>
           <Link href="/fashion" className="flex items-baseline gap-1.5">
             <span className="text-lg font-semibold tracking-[0.2em] text-white">
               MIROIR
             </span>
-            <span className="text-[10px] uppercase tracking-widest text-white/40">
+            <span className="hidden text-[10px] uppercase tracking-widest text-white/40 sm:inline">
               Fitting Room
             </span>
           </Link>
@@ -39,7 +43,7 @@ export function FashionNavbar() {
         <button
           onClick={openCart}
           aria-label="Open cart"
-          className="relative grid h-10 w-10 place-items-center rounded-full border border-white/15 text-white/80 transition hover:bg-white/10"
+          className="relative grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/15 text-white/80 transition hover:bg-white/10"
         >
           <ShoppingBag className="h-5 w-5" />
           {count > 0 && (
@@ -49,6 +53,13 @@ export function FashionNavbar() {
           )}
         </button>
       </div>
+
+      {/* Mobile navigation row, mirroring the skincare header. */}
+      <nav className="flex items-center gap-6 overflow-x-auto border-t border-white/10 px-5 py-2.5 text-sm font-medium text-white/60 md:hidden">
+        <a href="#shop" className="whitespace-nowrap hover:text-white">Collection</a>
+        <a href="#how" className="whitespace-nowrap hover:text-white">How it works</a>
+        <Link href="/" className="whitespace-nowrap hover:text-white">Skincare</Link>
+      </nav>
     </header>
   );
 }
