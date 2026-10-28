@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Sparkles, Camera, Shirt, ShoppingBag, ScanFace, ArrowRight } from "lucide-react";
 import { GARMENTS, GARMENT_CATEGORIES } from "@/lib/fashion/products";
 import { GarmentCard } from "@/components/fashion/GarmentCard";
+import { OccasionStylist } from "@/components/fashion/OccasionStylist";
 import { useFashion } from "@/lib/fashion/store";
 import { useStore } from "@/lib/store";
 import { useHydrated } from "@/lib/useHydrated";
@@ -178,7 +179,11 @@ export default function FashionHome() {
               </button>
             )}
           </div>
-        ) : (
+        ) : null}
+
+        {styleProfile?.hasTone && <OccasionStylist />}
+
+        {styleProfile ? null : (
           <Link
             href="/#scan"
             className="group mb-8 flex flex-col items-start justify-between gap-4 overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] p-6 transition hover:bg-white/[0.05] sm:flex-row sm:items-center"

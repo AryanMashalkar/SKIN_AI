@@ -13,6 +13,10 @@ import type { Colourway } from "@/lib/fashion/colourways";
 // calm visible redness; warm tones can amplify it).
 export type ColorWarmth = "cool" | "warm" | "neutral";
 
+/** Where a garment can be worn. The occasion agent filters on these. */
+export const OCCASIONS = ["everyday", "smart-casual", "evening", "outdoor", "travel"] as const;
+export type Occasion = (typeof OCCASIONS)[number];
+
 export interface Garment {
   id: string;
   name: string;
@@ -38,6 +42,7 @@ export interface Garment {
    * recolouring them cannot preserve believable shading.
    */
   colourways: Colourway[];
+  occasions: Occasion[];
   tag?: string;
 }
 
@@ -65,6 +70,7 @@ export const GARMENTS: Garment[] = [
       { id: "rust", name: "rust", hex: "#94452a" },
       { id: "stone", name: "stone grey", hex: "#8c8c88" },
     ],
+    occasions: ["smart-casual", "outdoor", "everyday"],
     tag: "Bestseller",
   },
   {
@@ -84,6 +90,7 @@ export const GARMENTS: Garment[] = [
     colorName: "black",
     warmth: "neutral",
     colourways: [{ id: "black", name: "black", hex: "#323234", original: true }],
+    occasions: ["evening", "everyday"],
     tag: "New",
   },
   {
@@ -109,6 +116,7 @@ export const GARMENTS: Garment[] = [
       { id: "navy", name: "navy", hex: "#1f2a4a" },
       { id: "teal", name: "deep teal", hex: "#1f5a5a" },
     ],
+    occasions: ["outdoor", "travel"],
   },
   {
     id: "slim-tee",
@@ -132,6 +140,7 @@ export const GARMENTS: Garment[] = [
       { id: "dusty-blue", name: "dusty blue", hex: "#a6b4cc" },
       { id: "blush", name: "blush", hex: "#e2b9b4" },
     ],
+    occasions: ["everyday"],
   },
   {
     id: "slim-fit-tee",
@@ -155,6 +164,7 @@ export const GARMENTS: Garment[] = [
       { id: "mustard", name: "mustard", hex: "#b8892e" },
       { id: "charcoal", name: "charcoal", hex: "#3a3a3c" },
     ],
+    occasions: ["everyday", "smart-casual"],
   },
   {
     id: "boat-neck-top",
@@ -172,6 +182,7 @@ export const GARMENTS: Garment[] = [
     colorName: "white",
     warmth: "neutral",
     colourways: [{ id: "white", name: "white", hex: "#eeeeee", original: true }],
+    occasions: ["everyday", "smart-casual"],
     tag: "Limited",
   },
 ];
