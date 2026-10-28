@@ -15,6 +15,10 @@
 import type { Garment } from "@/lib/fashion/products";
 import type { SkinProfile } from "@/lib/skin";
 import {
+  rankColourways,
+  type RankedColourway,
+} from "@/lib/fashion/colourways";
+import {
   UNDERTONE_LABEL,
   type Undertone,
 } from "@/lib/color";
@@ -34,7 +38,7 @@ export interface StyleProfile {
   rationale: string[];
 }
 
-const REDNESS_ELEVATED_BELOW = 78;
+export const REDNESS_ELEVATED_BELOW = 78;
 const RADIANCE_LOW_BELOW = 78;
 
 /** Derives a styling recommendation from a skin profile. */
@@ -219,6 +223,70 @@ function buildReason(
 
 function cap(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/**
+ * Ranks one garment's colourways for this scan: the measured season palette,
+ * adjusted for redness flagged on the same scan. Empty when there is no
+ * measured tone, so the UI shows colourways unranked instead of guessing.
+ */
+export function rankColourwaysForSkin(
+  profile: SkinProfile,
+  garment: Garment,
+): RankedColourway[] {
+  return rankColourways(garment.colourways, deriveStyleProfile(profile).palette, {
+    rednessElevated: profile.scores.redness < REDNESS_ELEVATED_BELOW,
+  });
+}
+
+export interface ColourProof {
+  garment: Garment;
+  /** The colourway we recommend for this shopper. */
+  best: RankedColourway;
+  /** What they would otherwise get: the colour in the photo, or our worst pick. */
+  contrast: RankedColourway;
+  contrastIs: "as-pictured" | "worst";
+}
+
+/**
+ * Chooses the proof shot: one upper-body garment rendered twice on the
+ * shopper, in our best colourway and in the colour they would have bought from
+ * the product photo. When the photo already shows our best pick, the contrast
+ * falls back to the worst-ranked colourway. Garments whose photo is *not* our
+ * pick come first (that is the real purchase being corrected); among those,
+ * the widest fit gap wins, because that is the difference a viewer can see.
+ */
+export function proofForSkin(
+  profile: SkinProfile,
+  garments: Garment[],
+): ColourProof | null {
+  let chosen: ColourProof | null = null;
+  let widest = -Infinity;
+
+  for (const garment of garments) {
+    if (garment.garmentCategory === "lower_body" || garment.colourways.length < 2) continue;
+    const ranking = rankColourwaysForSkin(profile, garment);
+    if (ranking.length < 2) continue;
+
+    const best = ranking[0];
+    const pictured = ranking.find((r) => r.colourway.original);
+    const usePictured = pictured && pictured !== best;
+    const contrast = usePictured ? pictured : ranking[ranking.length - 1];
+    // Fit is 0-100, so +1000 ranks every as-pictured candidate above any
+    // worst-colourway fallback without changing order within each group.
+    const gap = best.fit - contrast.fit + (usePictured ? 1000 : 0);
+
+    if (gap > widest) {
+      widest = gap;
+      chosen = {
+        garment,
+        best,
+        contrast,
+        contrastIs: usePictured ? "as-pictured" : "worst",
+      };
+    }
+  }
+  return chosen;
 }
 
 /** Single garment's styling verdict. */

@@ -108,7 +108,8 @@ export async function POST(req: NextRequest) {
 
   const base = publicBase(req);
   // Default: the static garment image. If the client sent a recoloured variant
-  // (proof-shot comparison), host that and use it as the garment instead.
+  // (a colourway, or one side of the proof shot), host that and use it as the
+  // garment instead.
   let refUrl = `${base}${garment.image}`;
 
   const isPublic = /^https:\/\//.test(base) && !base.includes("localhost");

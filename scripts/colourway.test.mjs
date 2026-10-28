@@ -8,8 +8,12 @@ import {
   CLASH_DELTA_E,
   REDNESS_PENALTY,
 } from "../src/lib/fashion/colourways.ts";
-import { seasonDef, rgbToLab, hexToRgb } from "../src/lib/color.ts";
+import { seasonDef, rgbToLab, hexToRgb, analyzeSkinTone } from "../src/lib/color.ts";
 import { GARMENTS } from "../src/lib/fashion/products.ts";
+import { remapLightness } from "../src/lib/fashion/lightness.ts";
+import { proofForSkin, rankColourwaysForSkin } from "../src/lib/fashion/styling.ts";
+import { fromGarment } from "../src/lib/cart.ts";
+import { ALL_CONCERNS } from "../src/lib/skin.ts";
 
 let passed = 0;
 let failed = 0;
@@ -114,6 +118,69 @@ assert(
   "colourway ids are unique within each garment",
   GARMENTS.every((g) => new Set(g.colourways.map((c) => c.id)).size === g.colourways.length),
 );
+
+// --- lightness remap (recolouring) -------------------------------------------
+assert("garment mean lands on the darker target", Math.abs(remapLightness(0.6, 0.6, 0.2) - 0.2) < 1e-9);
+assert("garment mean lands on the lighter target", Math.abs(remapLightness(0.3, 0.3, 0.8) - 0.8) < 1e-9);
+assert("darkening keeps folds darker than highlights", remapLightness(0.4, 0.6, 0.2) < remapLightness(0.8, 0.6, 0.2));
+assert("lightening keeps folds darker than highlights", remapLightness(0.2, 0.3, 0.8) < remapLightness(0.4, 0.3, 0.8));
+assert(
+  "darkening does not crush a shadow to the floor",
+  remapLightness(0.3, 0.6, 0.2) > 0.05,
+);
+assert("output is clamped to a printable range", [0, 0.5, 1].every((l) => {
+  const v = remapLightness(l, 0.5, 0.99);
+  return v >= 0.02 && v <= 0.97;
+}));
+
+// --- proof shot ----------------------------------------------------------------
+function profileWith(skinHex, redness = 85) {
+  const scores = {};
+  for (const k of ALL_CONCERNS) scores[k] = 85;
+  scores.redness = redness;
+  return {
+    scores,
+    skinAge: 28,
+    skinType: "Normal",
+    overall: 85,
+    demo: false,
+    capturedAt: new Date().toISOString(),
+    tone: analyzeSkinTone(skinHex),
+  };
+}
+
+const warmDeep = profileWith("#8d5a3c");
+const proof = proofForSkin(warmDeep, GARMENTS);
+assert("proof is chosen when a tone was measured", proof !== null);
+assert("proof garment has several colourways", proof.garment.colourways.length > 1);
+assert("proof garment is not lower-body", proof.garment.garmentCategory !== "lower_body");
+assert("proof 'best' is that garment's top-ranked colourway", proof.best.colourway.id === rankColourwaysForSkin(warmDeep, proof.garment)[0].colourway.id);
+assert("proof compares two different colourways", proof.best.colourway.id !== proof.contrast.colourway.id);
+assert("our pick fits at least as well as the contrast", proof.best.fit >= proof.contrast.fit);
+assert(
+  "an as-pictured contrast really is the photographed colour",
+  proof.contrastIs !== "as-pictured" || proof.contrast.colourway.original === true,
+);
+assert(
+  "an as-pictured garment is preferred when one exists",
+  proof.contrastIs === "as-pictured" ||
+    GARMENTS.every((g) => {
+      const r = rankColourwaysForSkin(warmDeep, g);
+      return r.length < 2 || r[0].colourway.original;
+    }),
+);
+
+const untoned = { ...warmDeep, tone: undefined };
+assert("no measured tone -> no proof (never invented)", proofForSkin(untoned, GARMENTS) === null);
+assert("no measured tone -> colourways unranked", rankColourwaysForSkin(untoned, GARMENTS[0]).length === 0);
+
+// --- cart: one line per colourway ----------------------------------------------
+const jacket = GARMENTS.find((g) => g.colourways.length > 1);
+const [orig, alt] = jacket.colourways;
+assert("photographed colour keeps the plain garment id", fromGarment(jacket, orig).id === jacket.id);
+assert("a recoloured colourway gets its own cart id", fromGarment(jacket, alt).id === `${jacket.id}:${alt.id}`);
+assert("cart name says which colour", fromGarment(jacket, alt).name.includes(alt.name));
+assert("no colourway -> unchanged legacy item", fromGarment(jacket).id === jacket.id && fromGarment(jacket).name === jacket.name);
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

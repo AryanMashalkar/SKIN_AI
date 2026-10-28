@@ -16,17 +16,25 @@ export interface UserPhoto {
 
 export type TryOnStatus = "idle" | "running" | "done" | "error";
 
+/** Try-on results are per garment *and* colourway: navy on you is not khaki on you. */
+export function resultKey(garmentId: string, colourwayId: string): string {
+  return `${garmentId}:${colourwayId}`;
+}
+
 interface FashionState {
   userPhoto: UserPhoto | null;
-  results: Record<string, string>; // garmentId -> result image URL
-  status: Record<string, TryOnStatus>;
+  results: Record<string, string>; // resultKey -> result image URL
+  status: Record<string, TryOnStatus>; // resultKey -> status
+  /** garmentId -> colourway the shopper picked; unset means "our pick". */
+  selected: Record<string, string>;
 
   tryOnFor: string | null; // garment id whose modal is open
   proofOpen: boolean;
 
   setUserPhoto: (p: UserPhoto | null) => void;
-  setResult: (garmentId: string, url: string) => void;
-  setStatus: (garmentId: string, s: TryOnStatus) => void;
+  setResult: (key: string, url: string) => void;
+  setStatus: (key: string, s: TryOnStatus) => void;
+  selectColourway: (garmentId: string, colourwayId: string) => void;
 
   openTryOn: (garmentId: string) => void;
   closeTryOn: () => void;
@@ -40,14 +48,17 @@ export const useFashion = create<FashionState>()((set) => ({
   userPhoto: null,
   results: {},
   status: {},
+  selected: {},
   tryOnFor: null,
   proofOpen: false,
 
   setUserPhoto: (p) => set({ userPhoto: p }),
-  setResult: (garmentId, url) =>
-    set((s) => ({ results: { ...s.results, [garmentId]: url } })),
-  setStatus: (garmentId, st) =>
-    set((s) => ({ status: { ...s.status, [garmentId]: st } })),
+  setResult: (key, url) =>
+    set((s) => ({ results: { ...s.results, [key]: url } })),
+  setStatus: (key, st) =>
+    set((s) => ({ status: { ...s.status, [key]: st } })),
+  selectColourway: (garmentId, colourwayId) =>
+    set((s) => ({ selected: { ...s.selected, [garmentId]: colourwayId } })),
 
   openTryOn: (garmentId) => set({ tryOnFor: garmentId }),
   closeTryOn: () => set({ tryOnFor: null }),

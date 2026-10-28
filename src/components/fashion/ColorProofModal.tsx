@@ -15,8 +15,8 @@ import { useFashion } from "@/lib/fashion/store";
 import { useStore } from "@/lib/store";
 import { GARMENTS } from "@/lib/fashion/products";
 import { preparePhoto } from "@/lib/fashion/photo";
-import { rankGarmentsForSkin } from "@/lib/fashion/styling";
-import { proofColors } from "@/lib/color";
+import { proofForSkin } from "@/lib/fashion/styling";
+import type { Colourway } from "@/lib/fashion/colourways";
 import { recolorGarment } from "@/lib/fashion/recolor";
 
 type Phase = "need-photo" | "ready" | "running" | "done" | "error";
@@ -51,16 +51,11 @@ function ColorProofModalBody() {
   const [note, setNote] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // The best-flattering upper/full-body garment to demonstrate on.
-  const garment =
-    tone && profile
-      ? rankGarmentsForSkin(profile, GARMENTS).find(
-          (g) => g.garment.garmentCategory !== "lower_body",
-        )?.garment ?? GARMENTS[0]
-      : GARMENTS[0];
-
-  const colors = tone ? proofColors(tone) : null;
-
+  // One garment, two of its own colourways: our pick vs. the colour in the
+  // product photo (what the shopper would otherwise have bought).
+  const proof = tone && profile ? proofForSkin(profile, GARMENTS) : null;
+  const garment = proof?.garment ?? GARMENTS[0];
+  const contrastTitle = proof?.contrastIs === "as-pictured" ? "As pictured" : "Worst for you";
 
   async function handleFile(file: File) {
     try {
@@ -72,8 +67,11 @@ function ColorProofModalBody() {
     }
   }
 
-  async function runOne(hex: string): Promise<Side> {
-    const garmentImageDataUrl = await recolorGarment(garment.image, hex);
+  async function runOne(colourway: Colourway): Promise<Side> {
+    // The photographed colour goes by id so the server uses the stored photo.
+    const garmentImageDataUrl = colourway.original
+      ? undefined
+      : await recolorGarment(garment.image, colourway.hex);
     const res = await fetch("/api/tryon", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -85,19 +83,19 @@ function ColorProofModalBody() {
     });
     const data = await res.json();
     return {
-      url: data.resultUrl || garmentImageDataUrl,
+      url: data.resultUrl || garmentImageDataUrl || garment.image,
       live: data.source === "perfectcorp",
     };
   }
 
   async function generate() {
-    if (!userPhoto || !colors) return;
+    if (!userPhoto || !proof) return;
     setPhase("running");
     setNote("");
     try {
       const [f, c] = await Promise.all([
-        runOne(colors.flattering.hex),
-        runOne(colors.clashing.hex),
+        runOne(proof.best.colourway),
+        runOne(proof.contrast.colourway),
       ]);
       setFlat(f);
       setClash(c);
@@ -127,20 +125,21 @@ function ColorProofModalBody() {
             <Wand2 className="h-4 w-4" /> Prove it on your photo
           </div>
           <h2 className="mt-1 text-lg font-semibold">
-            {tone
-              ? `The same ${garment.name}, your colour vs. a clash`
+            {proof
+              ? `The ${garment.name}: ${proof.best.colourway.name} vs. ${proof.contrast.colourway.name}`
               : "Scan your skin first"}
           </h2>
-          {tone && colors && (
+          {tone && proof && (
             <p className="mt-0.5 text-sm text-white/60">
-              Your {tone.seasonLabel} palette should lift you; a{" "}
-              {colors.clashing.name} of the opposite undertone should drain you.
+              {proof.contrastIs === "as-pictured"
+                ? `The photo sells it in ${proof.contrast.colourway.name}. For your ${tone.seasonLabel} palette we'd pick ${proof.best.colourway.name}.`
+                : `${cap(proof.best.colourway.name)} is our pick for your ${tone.seasonLabel} palette; ${proof.contrast.colourway.name} is the colourway furthest from it.`}{" "}
               Same garment, same photo — only the colour changes.
             </p>
           )}
         </div>
 
-        {!tone ? (
+        {!tone || !proof ? (
           <div className="p-8 text-center text-white/60">
             <p>
               Run a skin scan on the home page first — the proof needs your
@@ -179,12 +178,12 @@ function ColorProofModalBody() {
               </div>
             )}
 
-            {phase === "ready" && colors && (
+            {phase === "ready" && (
               <div className="flex flex-col items-center gap-4 py-6 text-center">
                 <div className="flex items-center gap-4">
-                  <Swatch color={colors.flattering.hex} label={colors.flattering.name} good />
+                  <Swatch color={proof.best.colourway.hex} label={proof.best.colourway.name} good />
                   <span className="text-white/30">vs</span>
-                  <Swatch color={colors.clashing.hex} label={colors.clashing.name} />
+                  <Swatch color={proof.contrast.colourway.hex} label={proof.contrast.colourway.name} />
                 </div>
                 <button
                   onClick={generate}
@@ -211,16 +210,16 @@ function ColorProofModalBody() {
               <div className="grid grid-cols-2 gap-3">
                 <ProofSide
                   side={flat}
-                  color={colors?.flattering.hex}
-                  title="In your palette"
-                  subtitle={colors?.flattering.name}
+                  color={proof.best.colourway.hex}
+                  title="Our pick for you"
+                  subtitle={proof.best.reason}
                   good
                 />
                 <ProofSide
                   side={clash}
-                  color={colors?.clashing.hex}
-                  title="Off your palette"
-                  subtitle={colors?.clashing.name}
+                  color={proof.contrast.colourway.hex}
+                  title={contrastTitle}
+                  subtitle={proof.contrast.reason}
                 />
               </div>
             )}
@@ -229,10 +228,9 @@ function ColorProofModalBody() {
 
             {phase === "done" && (
               <p className="mt-3 text-center text-sm text-white/70">
-                Same garment, same photo — your{" "}
+                Same garment, same photo. Left is the colourway closest to your{" "}
                 <span className="font-semibold text-white">{tone.seasonLabel}</span>{" "}
-                colour (left) works with your skin; the clashing shade (right)
-                fights it.
+                palette; right is {proof.contrastIs === "as-pictured" ? "the colour in the product photo" : "the colourway furthest from it"}.
               </p>
             )}
           </div>
@@ -240,6 +238,10 @@ function ColorProofModalBody() {
       </div>
     </div>
   );
+}
+
+function cap(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 function Swatch({
@@ -295,11 +297,11 @@ function ProofSide({
           {title}
         </span>
       </div>
-      <div className="flex items-center justify-between p-2.5">
-        <span className="text-xs capitalize text-white/60">{subtitle}</span>
+      <div className="flex items-start justify-between gap-2 p-2.5">
+        <span className="text-xs leading-snug text-white/60">{subtitle}</span>
         {color && (
           <span
-            className="h-4 w-4 rounded-full border border-white/20"
+            className="h-4 w-4 shrink-0 rounded-full border border-white/20"
             style={{ background: color }}
           />
         )}

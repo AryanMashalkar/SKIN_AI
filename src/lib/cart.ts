@@ -13,6 +13,7 @@
 
 import type { Product } from "@/lib/products";
 import type { Garment } from "@/lib/fashion/products";
+import type { Colourway } from "@/lib/fashion/colourways";
 
 export type CartKind = "skincare" | "apparel";
 
@@ -49,14 +50,20 @@ export function fromProduct(p: Product): CartItem {
   };
 }
 
-export function fromGarment(g: Garment): CartItem {
+/**
+ * Each colourway is its own line: navy and khaki of the same jacket in the
+ * same size are different things to ship. The photographed original keeps the
+ * plain garment id so carts persisted before colourways existed still match.
+ */
+export function fromGarment(g: Garment, colourway?: Colourway): CartItem {
+  const recoloured = colourway && !colourway.original;
   return {
-    id: g.id,
-    name: g.name,
+    id: recoloured ? `${g.id}:${colourway.id}` : g.id,
+    name: colourway ? `${g.name} · ${colourway.name}` : g.name,
     brand: g.brand,
     price: g.price,
     kind: "apparel",
-    accent: g.accent,
+    accent: recoloured ? [colourway.hex, colourway.hex] : g.accent,
     image: g.image,
   };
 }

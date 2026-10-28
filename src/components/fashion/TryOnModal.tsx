@@ -11,7 +11,10 @@ import {
   Check,
   ShoppingBag,
 } from "lucide-react";
-import { useFashion } from "@/lib/fashion/store";
+import { useFashion, resultKey } from "@/lib/fashion/store";
+import { useColourway } from "@/lib/fashion/useColourway";
+import { recolorGarment } from "@/lib/fashion/recolor";
+import { ColourwayPicker } from "@/components/fashion/ColourwayPicker";
 import { garmentById } from "@/lib/fashion/products";
 import { preparePhoto } from "@/lib/fashion/photo";
 import { useStore } from "@/lib/store";
@@ -59,9 +62,12 @@ function TryOnModalBody({
   const addGarment = useStore((s) => s.addGarment);
 
   const skinProfile = useStore((s) => s.profile);
+  const colourState = useColourway(garment);
+  const { colourway, verdict, image } = colourState;
 
-  const result = results[tryOnFor];
-  const status = statusMap[tryOnFor] ?? "idle";
+  const key = resultKey(tryOnFor, colourway.id);
+  const result = results[key];
+  const status = statusMap[key] ?? "idle";
 
   const [camera, setCamera] = useState(false);
   const [warming, setWarming] = useState(false);
@@ -141,29 +147,37 @@ function TryOnModalBody({
 
   async function runTryOn() {
     if (!userPhoto || !garment) return;
-    setStatus(garment.id, "running");
+    // Captured now: the shopper can switch colour while this one renders.
+    const runKey = key;
+    setStatus(runKey, "running");
     setNote("");
     try {
+      // A recoloured colourway is sent as its own garment image; the
+      // photographed original goes by id so the server uses the stored photo.
+      const garmentImageDataUrl = colourway.original
+        ? undefined
+        : await recolorGarment(garment.image, colourway.hex);
       const res = await fetch("/api/tryon", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userPhotoDataUrl: userPhoto.dataUrl,
           garmentId: garment.id,
+          garmentImageDataUrl,
         }),
       });
       const data = await res.json();
-      if (data.resultUrl) setResult(garment.id, data.resultUrl);
-      setStatus(garment.id, "done");
+      if (data.resultUrl) setResult(runKey, data.resultUrl);
+      setStatus(runKey, "done");
       if (data.source === "mock" && data.note) setNote(data.note);
     } catch {
-      setStatus(garment.id, "error");
+      setStatus(runKey, "error");
       setNote("Try-on failed. Please try again.");
     }
   }
 
   function handleAdd() {
-    addGarment(garment, size);
+    addGarment(garment, size, colourway);
     setAdded(true);
     setTimeout(() => setAdded(false), 1200);
   }
@@ -290,7 +304,22 @@ function TryOnModalBody({
           </p>
           <h2 className="mt-1 text-lg font-semibold">{garment.name}</h2>
 
-          {skinVerdict && (
+          <ColourwayPicker garment={garment} state={colourState} />
+
+          {verdict ? (
+            <p
+              className={`mt-1.5 flex items-start gap-1.5 text-xs leading-snug ${
+                verdict.verdict === "clash"
+                  ? "text-amber-300/80"
+                  : verdict.verdict === "workable"
+                    ? "text-white/60"
+                    : "text-emerald-300/80"
+              }`}
+            >
+              <Sparkles className="mt-0.5 h-3 w-3 shrink-0" />
+              <span>{verdict.reason}</span>
+            </p>
+          ) : skinVerdict && (
             <p
               className={`mt-1.5 flex items-start gap-1.5 text-xs leading-snug ${
                 skinVerdict.caution ? "text-amber-300/80" : "text-emerald-300/80"
@@ -304,9 +333,9 @@ function TryOnModalBody({
           <div className="relative mt-3 aspect-[3/4] max-h-[42dvh] overflow-hidden rounded-2xl bg-neutral-800">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={result || garment.image}
-              alt={garment.name}
-              className="h-full w-full object-cover"
+              src={result || image || garment.image}
+              alt={`${garment.name} in ${colourway.name}`}
+              className={`h-full w-full object-cover ${result || image ? "" : "opacity-40"}`}
             />
             {status === "running" && (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/60">
@@ -394,7 +423,7 @@ function TryOnModalBody({
                 </>
               ) : (
                 <>
-                  <ShoppingBag className="h-4 w-4" /> Add to bag · ${garment.price}
+                  <ShoppingBag className="h-4 w-4" /> Add {colourway.name} to bag · ${garment.price}
                 </>
               )}
             </button>
