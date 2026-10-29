@@ -38,6 +38,8 @@ export interface RankedColourway {
   nearest: PaletteColor;
   temp: ColourTemp;
   verdict: ColourwayVerdict;
+  /** A red-family colour on a scan with redness flagged. */
+  redFlag: boolean;
   reason: string;
 }
 
@@ -107,9 +109,7 @@ export function rankColourways(
   if (palette.length === 0 || colourways.length === 0) return [];
   const paletteLab = palette.map((p) => ({ p, lab: labOf(p.hex) }));
 
-  const ranked = colourways.map((colourway): Omit<RankedColourway, "reason"> & {
-    redFlag: boolean;
-  } => {
+  const ranked = colourways.map((colourway): Omit<RankedColourway, "reason"> => {
     const lab = labOf(colourway.hex);
     let nearest = paletteLab[0];
     let best = Infinity;
@@ -140,19 +140,13 @@ export function rankColourways(
   ranked.sort((a, b) => b.fit - a.fit);
   if (ranked[0].verdict === "good") ranked[0].verdict = "best";
 
-  return ranked.map(({ redFlag, ...r }) => ({
-    ...r,
-    reason: buildReason(r, redFlag),
-  }));
+  return ranked.map((r) => ({ ...r, reason: buildReason(r) }));
 }
 
-function buildReason(
-  r: Omit<RankedColourway, "reason">,
-  redFlag: boolean,
-): string {
+function buildReason(r: Omit<RankedColourway, "reason">): string {
   const name = r.colourway.name;
   const near = `${r.nearest.name}, ΔE ${Math.round(r.deltaE)}`;
-  const redness = redFlag
+  const redness = r.redFlag
     ? " Your scan flagged redness today, and reds near the face amplify it."
     : "";
   if (r.verdict === "best" || r.verdict === "good")

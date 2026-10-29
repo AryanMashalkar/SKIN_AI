@@ -150,5 +150,33 @@ assert(
 );
 assert("no tone -> planner reports why", "error" in planWithoutModel(untoned, "Dinner"));
 
+// --- found by stress testing the deployed preview -------------------------------------
+const flushedPlan = planWithoutModel(flushed, "Office day, something smart, under $120");
+assert(
+  "redness flagged: planner avoids red colourways when another colour fits",
+  !("error" in flushedPlan) &&
+    flushedPlan.items.every((i) => {
+      const usable = rankColourwaysForSkin(flushed, GARMENTS.find((g) => g.id === i.garmentId)).filter(
+        (r) => r.verdict !== "clash",
+      );
+      return !usable.find((r) => r.colourway.id === i.colourwayId).redFlag || usable.every((r) => r.redFlag);
+    }),
+);
+assert("redness flagged: the note says why", /redness/i.test(flushedPlan.note));
+assert("redness flag reaches the model's rank_colours output", rankColours(flushed, { garment_id: "cotton-jacket" }).data.some((r) => r.red_near_flagged_redness));
+const rupeePlan = planWithoutModel(warm, "Cousin's wedding, budget ₹4000");
+assert("rupee budget: planner says it was not applied", /isn't in USD/.test(rupeePlan.note));
+assert("rupee budget: no budget is invented", rupeePlan.budget === null);
+assert("plain brief: no currency note", !/USD/.test(planWithoutModel(warm, "brunch under $130").note));
+
+// --- readJson: platform errors are not JSON ----------------------------------------------
+const { readJson } = await import("../src/lib/http.ts");
+const plain413 = await readJson(new Response("Request Entity Too Large", { status: 413, headers: { "content-type": "text/plain" } }));
+assert("plain-text 413 becomes a readable message", plain413.data === null && /too large/i.test(plain413.message));
+const okJson = await readJson(new Response(JSON.stringify({ a: 1 }), { status: 200, headers: { "content-type": "application/json" } }));
+assert("JSON replies still parse", okJson.data?.a === 1 && okJson.message === "");
+const broken = await readJson(new Response("{oops", { status: 502, headers: { "content-type": "application/json" } }));
+assert("broken JSON falls back to a status message", broken.data === null && /502/.test(broken.message));
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

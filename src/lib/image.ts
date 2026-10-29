@@ -17,12 +17,22 @@ const MAX_LONG_EDGE = 2560;
 const JPEG_QUALITY = 0.95;
 
 /**
- * Hard cap on what we will send to an API route (5 MB), matching the server's
- * own limit. Enforced on the *encoded output*, not the source file: a 12 MP
- * phone photo is legitimately 8-10 MB but downscales to a few hundred KB, so
- * rejecting on source size would refuse perfectly good selfies.
+ * Hard cap on what we will send to an API route (4 MB), matching the server's
+ * own limit. Vercel rejects any function request body over 4.5 MB with a
+ * plain-text 413 before the route runs, so the cap has to sit under that with
+ * room for the multipart envelope. Enforced on the *encoded output*, not the
+ * source file: a 12 MP phone photo is legitimately 8-10 MB but downscales to a
+ * few hundred KB, so rejecting on source size would refuse perfectly good
+ * selfies.
  */
-export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+export const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
+/**
+ * Try-on sends the photo as a base64 data URL inside JSON, next to a
+ * recoloured garment image, so its budget is the decoded size that keeps the
+ * whole body under Vercel's 4.5 MB: ~2.4 MB decoded is ~3.2 MB of base64,
+ * leaving room for the garment (a few hundred KB).
+ */
+export const MAX_TRYON_PHOTO_BYTES = 2.4 * 1024 * 1024;
 /**
  * Cap on the source file we're willing to decode at all. Guards against decode
  * bombs and pathological inputs before they reach `createImageBitmap`.

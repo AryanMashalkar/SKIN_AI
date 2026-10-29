@@ -123,6 +123,7 @@ export function rankColours(profile: SkinProfile, input: { garment_id: string })
       verdict: r.verdict,
       fit: r.fit,
       delta_e: r.deltaE,
+      red_near_flagged_redness: r.redFlag,
       reason: r.reason,
     })),
   };
@@ -228,8 +229,15 @@ export function occasionFromBrief(brief: string): Occasion {
  * A USD budget the brief states ("under $150", "budget 120", "max $90").
  * Other currencies return null rather than a guessed conversion.
  */
+const FOREIGN_BUDGET = /(₹|\brs\.?|\binr|€|\beur|£|\bgbp)\s?\d/i;
+
+/** True when the brief states a budget in a currency other than USD. */
+export function hasForeignBudget(brief: string): boolean {
+  return FOREIGN_BUDGET.test(brief);
+}
+
 export function budgetFromBrief(brief: string): number | null {
-  if (/(₹|rs\.?|inr|€|eur|£|gbp)\s?\d/i.test(brief)) return null;
+  if (hasForeignBudget(brief)) return null;
   const m =
     brief.match(/\$\s?(\d{2,5})/) ??
     brief.match(/\b(?:under|below|budget(?: of| is)?|max(?:imum)?|up to|within)\s+\$?(\d{2,5})\b/i);
@@ -258,7 +266,10 @@ export function planWithoutModel(profile: SkinProfile, brief: string): Look | { 
 
   const candidates = found
     .map((g) => {
-      const best = rankColourwaysForSkin(profile, g).find((r) => r.verdict !== "clash");
+      // Best non-clashing colourway, skipping reds while redness is flagged
+      // unless reds are all this garment comes in.
+      const usable = rankColourwaysForSkin(profile, g).filter((r) => r.verdict !== "clash");
+      const best = usable.find((r) => !r.redFlag) ?? usable[0];
       trace.push({
         tool: "rank_colours",
         input: { garment_id: g.id },
@@ -290,7 +301,9 @@ export function planWithoutModel(profile: SkinProfile, brief: string): Look | { 
     headline: `Your ${occasion} look`,
     note:
       "Best non-clashing colour per piece, highest total fit" +
-      (budget !== null ? ` within $${budget}.` : "."),
+      (budget !== null ? ` within $${budget}.` : ".") +
+      (hasForeignBudget(brief) ? " Your budget isn't in USD, so it wasn't applied (prices are USD)." : "") +
+      (profile.scores.redness < REDNESS_ELEVATED_BELOW ? " Redness is flagged today, so reds are avoided wherever another colour fits." : ""),
     items: best,
     total: best.reduce((s, i) => s + i.price, 0),
     budget,

@@ -19,9 +19,14 @@ export const maxDuration = 60;
  * route would `Buffer.from()` an arbitrarily large attacker-controlled base64
  * string straight into serverless memory.
  */
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
-/** Matching cap on the raw JSON body (two images + fields, base64 ~1.37x). */
-const MAX_BODY_BYTES = 15 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
+/**
+ * Cap on the raw JSON body (two images + fields, base64 ~1.37x). Vercel itself
+ * rejects function bodies over 4.5 MB before this route runs, so that is the
+ * real ceiling; the client sizes the photo to stay under it
+ * (MAX_TRYON_PHOTO_BYTES).
+ */
+const MAX_BODY_BYTES = 4.5 * 1024 * 1024;
 
 interface TryOnResponse {
   resultUrl: string;

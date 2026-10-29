@@ -7,6 +7,7 @@ import { useFashion } from "@/lib/fashion/store";
 import { garmentById } from "@/lib/fashion/products";
 import { useRecoloured } from "@/lib/fashion/useColourway";
 import type { Look, LookItem } from "@/lib/agent/tools";
+import { readJson } from "@/lib/http";
 
 const EXAMPLES = [
   "Smart-casual brunch on Sunday, under $130",
@@ -41,12 +42,12 @@ export function OccasionStylist() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ brief: b, profile }),
       });
-      const data: { look: Look | null; error?: string } = await res.json();
-      if (data.look) {
+      const { data, message } = await readJson<{ look: Look | null; error?: string }>(res);
+      if (data?.look) {
         setLook(data.look);
         setPhase("done");
       } else {
-        setError(data.error || "The stylist couldn't build a look for that.");
+        setError(data?.error || message || "The stylist couldn't build a look for that.");
         setPhase("error");
       }
     } catch {

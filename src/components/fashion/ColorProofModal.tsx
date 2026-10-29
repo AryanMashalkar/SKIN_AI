@@ -18,6 +18,7 @@ import { preparePhoto } from "@/lib/fashion/photo";
 import { proofForSkin } from "@/lib/fashion/styling";
 import type { Colourway } from "@/lib/fashion/colourways";
 import { recolorGarment } from "@/lib/fashion/recolor";
+import { readJson } from "@/lib/http";
 
 type Phase = "need-photo" | "ready" | "running" | "done" | "error";
 
@@ -81,7 +82,8 @@ function ColorProofModalBody() {
         garmentImageDataUrl,
       }),
     });
-    const data = await res.json();
+    const { data, message } = await readJson<{ resultUrl?: string; source?: string }>(res);
+    if (!data) throw new Error(message);
     return {
       url: data.resultUrl || garmentImageDataUrl || garment.image,
       live: data.source === "perfectcorp",
@@ -102,9 +104,9 @@ function ColorProofModalBody() {
       setPhase("done");
       if (!f.live || !c.live)
         setNote("Showing recoloured previews (live try-on unavailable here).");
-    } catch {
+    } catch (e) {
       setPhase("error");
-      setNote("Proof generation failed. Please try again.");
+      setNote(e instanceof Error && e.message ? e.message : "Proof generation failed. Please try again.");
     }
   }
 

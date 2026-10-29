@@ -12,7 +12,8 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /** Hard cap on the uploaded selfie (5 MB); the client downscales well below. */
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+// Matches MAX_UPLOAD_BYTES; Vercel's own 4.5 MB body limit sits just above.
+const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 interface AnalyzeResponse {

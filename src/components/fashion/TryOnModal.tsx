@@ -14,6 +14,7 @@ import {
 import { useFashion, resultKey } from "@/lib/fashion/store";
 import { useColourway } from "@/lib/fashion/useColourway";
 import { recolorGarment } from "@/lib/fashion/recolor";
+import { readJson } from "@/lib/http";
 import { ColourwayPicker } from "@/components/fashion/ColourwayPicker";
 import { garmentById } from "@/lib/fashion/products";
 import { preparePhoto } from "@/lib/fashion/photo";
@@ -166,7 +167,12 @@ function TryOnModalBody({
           garmentImageDataUrl,
         }),
       });
-      const data = await res.json();
+      const { data, message } = await readJson<{ resultUrl?: string; source?: string; note?: string }>(res);
+      if (!data) {
+        setStatus(runKey, "error");
+        setNote(message);
+        return;
+      }
       if (data.resultUrl) setResult(runKey, data.resultUrl);
       setStatus(runKey, "done");
       if (data.source === "mock" && data.note) setNote(data.note);
