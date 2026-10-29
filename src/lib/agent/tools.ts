@@ -6,7 +6,7 @@
 // and the catalogue, and `proposeLook` rejects a look that is over budget or
 // wears a colour that clashes with the shopper's palette. Pure and
 // deterministic, so it is unit-tested (scripts/agent.test.mjs) and shared by
-// the Grok loop and the fallback planner.
+// the AI loop (Groq) and the fallback planner.
 
 import {
   GARMENTS,
@@ -46,8 +46,8 @@ export interface Look {
   items: LookItem[];
   total: number;
   budget: number | null;
-  /** Who planned it: Grok with these tools, or the rules-only fallback. */
-  source: "grok" | "rules";
+  /** Who planned it: the AI model with these tools, or the rules-only fallback. */
+  source: "ai" | "rules";
   trace: TraceStep[];
 }
 
