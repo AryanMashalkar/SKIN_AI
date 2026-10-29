@@ -163,7 +163,12 @@ async function callGroqOnce(messages: ChatMessage[], deadline: number): Promise<
     if (!res.ok) {
       // Groq explains a 400 in the body (e.g. tool_use_failed when the model
       // emits a malformed call); keep a short copy for the server log only.
-      const detail = (await res.text().catch(() => "")).slice(0, 400);
+      // On a 429, Groq's headers say which limit was hit (per-minute tokens vs
+      // daily requests) and when it resets.
+      const limits = ["retry-after", "x-ratelimit-remaining-requests", "x-ratelimit-remaining-tokens", "x-ratelimit-reset-requests", "x-ratelimit-reset-tokens"]
+        .map((h) => `${h}=${res.headers.get(h) ?? "-"}`)
+        .join(" ");
+      const detail = `${limits} ${(await res.text().catch(() => "")).slice(0, 400)}`;
       const retryAfter = Number(res.headers.get("retry-after"));
       throw new GroqError(res.status, detail, Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : null);
     }
