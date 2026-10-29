@@ -145,7 +145,19 @@ async function callGroqOnce(messages: ChatMessage[], deadline: number): Promise<
         Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ model: MODEL, messages, tools: TOOLS, tool_choice: "auto" }),
+      body: JSON.stringify({
+        model: MODEL,
+        messages,
+        tools: TOOLS,
+        tool_choice: "auto",
+        // gpt-oss is a reasoning model. Choosing pieces from ranked data is an
+        // easy decision, and every token counts against the per-minute limit,
+        // so keep reasoning low, cap the reply at Groq's recommended 1024
+        // tokens, and don't ship the reasoning text back (it is never shown).
+        reasoning_effort: "low",
+        max_completion_tokens: 1024,
+        include_reasoning: false,
+      }),
       signal: controller.signal,
     });
     if (!res.ok) {
