@@ -134,7 +134,10 @@ interface GrokResponse {
 }
 
 class GrokError extends Error {
-  constructor(readonly status: number) {
+  constructor(
+    readonly status: number,
+    readonly detail: string,
+  ) {
     super(`xAI API returned ${status}`);
   }
 }
@@ -152,7 +155,12 @@ async function callGrok(body: Record<string, unknown>, deadline: number): Promis
       body: JSON.stringify(body),
       signal: controller.signal,
     });
-    if (!res.ok) throw new GrokError(res.status);
+    if (!res.ok) {
+      // xAI explains a 400 in the body (bad key format, unsupported field);
+      // keep a short copy for the server log. It never reaches the shopper.
+      const detail = (await res.text().catch(() => "")).slice(0, 400);
+      throw new GrokError(res.status, detail);
+    }
     return (await res.json()) as GrokResponse;
   } finally {
     clearTimeout(timer);
@@ -286,6 +294,7 @@ export async function runOccasionAgent(profile: SkinProfile, brief: string): Pro
     return fallback(profile, brief, "The stylist did not settle on a look.");
   } catch (err) {
     if (err instanceof GrokError) {
+      console.error(`[agent] xAI ${err.status}: ${err.detail}`);
       if (err.status === 401 || err.status === 403) return fallback(profile, brief, "The AI key was rejected.");
       if (err.status === 429) return fallback(profile, brief, "The AI stylist is busy right now.");
       return fallback(profile, brief, `The AI stylist is unavailable (${err.status}).`);
