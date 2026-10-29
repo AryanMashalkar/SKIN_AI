@@ -6,6 +6,7 @@
 
 import {
   readScan,
+  findPieces,
   searchCatalog,
   rankColours,
   proposeLook,
@@ -70,6 +71,26 @@ const ranked = rankColours(warm, { garment_id: "cotton-jacket" });
 assert("rank_colours returns every colourway", ranked.ok && ranked.data.length === GARMENTS[0].colourways.length);
 assert("rank_colours rejects an unknown garment", rankColours(warm, { garment_id: "nope" }).ok === false);
 assert("rank_colours refuses without a tone", rankColours(untoned, { garment_id: "cotton-jacket" }).ok === false);
+
+// --- find_pieces (what the model actually calls) -------------------------------------
+const pieces = findPieces(warm, { occasion: "smart-casual", max_price: null });
+assert("find_pieces returns pieces for the occasion", pieces.ok && pieces.data.length > 0);
+assert(
+  "find_pieces ranks every colourway of every piece",
+  pieces.data.every((p) => p.colours.length === GARMENTS.find((g) => g.id === p.id).colourways.length),
+);
+assert(
+  "find_pieces fit matches the colourway ranking exactly",
+  pieces.data.every((p) => {
+    const r = rankColourwaysForSkin(warm, GARMENTS.find((g) => g.id === p.id));
+    return p.colours.every((c, i) => c.id === r[i].colourway.id && c.fit === r[i].fit && c.verdict === r[i].verdict);
+  }),
+);
+assert("find_pieces marks reds only when redness is flagged", findPieces(warm, { occasion: null }).data.every((p) => p.colours.every((c) => !c.red)));
+assert("find_pieces marks reds when redness is flagged", findPieces(flushed, { occasion: null }).data.some((p) => p.colours.some((c) => c.red)));
+assert("find_pieces respects max price", findPieces(warm, { occasion: null, max_price: 30 }).data.every((p) => p.price <= 30));
+assert("find_pieces refuses without a tone", findPieces(untoned, { occasion: null }).ok === false);
+assert("find_pieces output stays compact (< 2.5 KB for the whole catalogue)", JSON.stringify(findPieces(warm, { occasion: null }).data).length < 2500);
 
 // --- propose_look ------------------------------------------------------------------
 const best = rankColourwaysForSkin(warm, GARMENTS.find((g) => g.id === "cotton-jacket"))[0];

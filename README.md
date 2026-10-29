@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/AryanMashalkar/SKIN_AI/actions/workflows/ci.yml/badge.svg)](https://github.com/AryanMashalkar/SKIN_AI/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![tests](https://img.shields.io/badge/tests-358%20assertions-3fb950.svg)](scripts)
+[![tests](https://img.shields.io/badge/tests-366%20assertions-3fb950.svg)](scripts)
 [![YouCam API Hackathon](https://img.shields.io/badge/YouCam%20API-Skin%20AI%20%26%20eCommerce%20VTO-c9a227.svg)](https://youcam-api-skin-ai-ecommerce.devpost.com/)
 
 Submitted to the **YouCam API Skin AI & eCommerce VTO Hackathon**, eCommerce
@@ -54,7 +54,7 @@ own body** so you can see the difference instead of taking our word for it.
 | **The agent's tools** | `src/lib/agent/tools.ts` (pure, tested) · `src/lib/agent/run.ts` (AI loop on Groq) |
 | **How honest it is** | [`data/seasons/README.md`](data/seasons/README.md) — what is validated, what is not, and the exact wording we will not use |
 | **It runs on your machine** | `npm install && npm run dev` — works with **zero keys**, in labelled demo mode |
-| **It verifies itself** | `npm test` — 358 assertions across nine suites |
+| **It verifies itself** | `npm test` — 366 assertions across nine suites |
 
 ---
 
@@ -72,8 +72,8 @@ period, on top of that codebase. The commits are on the
 | **Colourway picker, try-on and cart per colour.** Swatches marked best / clash on every card and in the fitting room; Apparel VTO renders the chosen colourway; the bag keeps it as its own line. | The recommendation now reaches the purchase, not just a badge. | `f0f9e4f` |
 | **Faithful recolouring.** Lightness is remapped toward the target (median-matched, so dark linings don't skew it). | The old recolour kept the photo's lightness, so a dark colour on a light garment came out pastel, and its saturation boost tinted greys red. | `f0f9e4f` |
 | **Proof shot rebuilt.** One real garment, rendered on you twice: our pick vs. the colour in the product photo. | It shows the purchase being corrected, not an abstract "clash colour". | `f0f9e4f` |
-| **Occasion stylist (agent).** Describe the occasion and budget; an AI model (`gpt-oss-120b` on Groq) plans through four tools (`read_scan`, `search_catalog`, `rank_colours`, `propose_look`). Fit, colour distance, verdict and total all come from the tools; `propose_look` rejects invented items, clashing colours and looks over budget, and the model must fix and resubmit. Without an AI key, a rules planner runs the same tools and the card says so. | An agent workflow whose output is measured, not generated. | `38f07ef` |
-| **119 new test assertions** (239 → 358) covering ranking, recolour maths, the proof choice, per-colour cart lines, every agent tool and the rules planner. | The new behaviour is pinned, not just demoed. | all |
+| **Occasion stylist (agent).** Describe the occasion and budget; an AI model (`gpt-oss-120b` on Groq) plans with the measured scan and two tools (`find_pieces`, `propose_look`). Fit, colour distance, verdict and total all come from the tools; `propose_look` rejects invented items, clashing colours and looks over budget, and the model must fix and resubmit. Without an AI key, a rules planner runs the same tools and the card says so. | An agent workflow whose output is measured, not generated. | `38f07ef` |
+| **127 new test assertions** (239 → 366) covering ranking, recolour maths, the proof choice, per-colour cart lines, every agent tool and the rules planner. | The new behaviour is pinned, not just demoed. | all |
 
 ---
 
@@ -201,12 +201,14 @@ is chasing noise. Collection protocol in [`data/seasons/README.md`](data/seasons
 An agent that plans, but cannot measure.
 
 ```
-brief ──► AI ──────► read_scan        season, palette, redness flagged today
-                 ├─► search_catalog   pieces tagged for the occasion, under budget
-                 ├─► rank_colours     each candidate's colourways, fit + ΔE + verdict
-                 └─► propose_look ──► validated: real ids, no clashing colour,
-                                      total computed by the store, within budget
-                                      (rejected → the model fixes it and resubmits)
+scan ──► read_scan (server) ── season, palette, redness flagged today ──┐
+                                                                        ▼
+brief ─────────────────────────────────────────────────────────────►  AI (gpt-oss-120b on Groq)
+                 ├─► find_pieces    pieces for the occasion, each with its colourways
+                 │                  ranked for this scan: verdict, fit, red flag
+                 └─► propose_look ► validated: real ids, no clashing colour,
+                                    total computed by the store, within budget
+                                    (rejected → the model fixes it and resubmits)
 ```
 
 - **The model chooses and explains; the tools measure.** Fit scores, colour
@@ -218,6 +220,12 @@ brief ──► AI ──────► read_scan        season, palette, redne
 - **It degrades, never breaks.** No `GROQ_API_KEY`, an API or network error,
   or the 45-second budget → a rules planner runs the same tools and
   the card is labelled "Planned by rules".
+- **Built for a tight token budget.** Groq's free tier allows about 8K tokens a
+  minute, and each turn resends the conversation, so the scan is handed over
+  measured and one tool returns pieces with their colours already ranked: a
+  look takes two model calls. Identical requests (same brief, season and
+  redness flag) are cached, and a rate limit is retried once when Groq's wait
+  is short.
 - **It won't guess a currency.** Prices are USD; a ₹ or € budget is left unset
   and the note says so, rather than converting at an invented rate.
 - **Known limit:** the demo catalogue is six pieces (jackets and tops), so many
@@ -258,7 +266,7 @@ cp .env.example .env.local   # PERFECTCORP_API_KEY for the YouCam APIs,
                              # GROQ_API_KEY for the AI stylist (both optional)
 npm run dev                  # http://localhost:3000
 
-npm test                     # 358 assertions, nine suites
+npm test                     # 366 assertions, nine suites
 npm run validate:season      # season engine vs reference archetypes
 npm run agreement            # inter-rater kappa + engine accuracy (awaiting data)
 npm run calibrate:season     # re-fit engine parameters by grid search
@@ -301,7 +309,7 @@ data/seasons/
   reference-archetypes.json       # 24 synthetic cases (regression gate)
   labelled-photos.json            # expert labels — schema ready, awaiting data
   README.md                       # what is proven, what is not
-scripts/*.test.mjs                # nine suites, 358 assertions
+scripts/*.test.mjs                # nine suites, 366 assertions
 ```
 
 ---

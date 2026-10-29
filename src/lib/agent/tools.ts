@@ -129,6 +129,39 @@ export function rankColours(profile: SkinProfile, input: { garment_id: string })
   };
 }
 
+// ---- find_pieces --------------------------------------------------------------------
+
+/**
+ * search_catalog and rank_colours in one call: every matching piece with its
+ * colourways already ranked for this scan. Compact on purpose, because the
+ * model resends tool output on every turn and token budgets are tight.
+ */
+export function findPieces(
+  profile: SkinProfile,
+  input: { occasion?: string | null; max_price?: number | null },
+): ToolResult {
+  const found = searchCatalog(input);
+  if (!found.ok) return found;
+  if (!profile.tone) return { ok: false, error: "No measured colour tone on this scan, so colourways cannot be ranked." };
+  const pieces = (found.data as { garment_id: string }[]).map(({ garment_id }) => {
+    const g = garmentById(garment_id)!;
+    return {
+      id: g.id,
+      name: g.name,
+      category: g.category,
+      price: g.price,
+      colours: rankColourwaysForSkin(profile, g).map((r) => ({
+        id: r.colourway.id,
+        colour: r.colourway.name,
+        verdict: r.verdict,
+        fit: r.fit,
+        ...(r.redFlag ? { red: true } : {}),
+      })),
+    };
+  });
+  return { ok: true, data: pieces };
+}
+
 // ---- propose_look ------------------------------------------------------------------
 
 export interface ProposeInput {

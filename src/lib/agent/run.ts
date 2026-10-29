@@ -1,11 +1,16 @@
 // Server-only: the occasion stylist's agent loop, on Groq.
 //
-// The model reads the brief, then works through the same tools the rules
-// planner uses (lib/agent/tools.ts): read the scan, search the catalogue for
-// the occasion, rank each candidate's colourways, and propose a look. It plans
+// The model gets the measured scan up front, then works through two tools
+// (lib/agent/tools.ts): find_pieces (catalogue pieces for the occasion, each
+// with its colourways already ranked for this scan) and propose_look. It plans
 // and writes the "why"; it never produces a measurement. proposeLook validates
 // the look (real ids, no clashing colourway, within budget) and the loop ends
 // only on a look that passes.
+//
+// Token budget drives the shape: Groq's free tier allows ~8K tokens a minute,
+// and every turn resends the conversation, so a run is designed to take two
+// model calls with compact tool output. Identical requests are cached, and a
+// 429 is retried once when Groq's retry-after fits the time budget.
 //
 // Groq serves an OpenAI-compatible chat-completions API: tool calls arrive as
 // `message.tool_calls`, and each result goes back as a `role: "tool"` message
@@ -17,10 +22,10 @@
 import "server-only";
 import type { SkinProfile } from "@/lib/skin";
 import { OCCASIONS } from "@/lib/fashion/products";
+import { REDNESS_ELEVATED_BELOW } from "@/lib/fashion/styling";
 import {
   readScan,
-  searchCatalog,
-  rankColours,
+  findPieces,
   proposeLook,
   planWithoutModel,
   type Look,
@@ -31,46 +36,37 @@ import {
 
 const ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 export const MODEL = "openai/gpt-oss-120b";
-const MAX_TURNS = 10;
+const MAX_TURNS = 6;
 /** Leave headroom under the route's 60s maxDuration for the fallback. */
 const TIME_BUDGET_MS = 45_000;
+/** Longest Groq retry-after (seconds) worth waiting for inside one request. */
+const MAX_RETRY_WAIT_S = 12;
 
 export function hasAgentKey(): boolean {
   return Boolean(process.env.GROQ_API_KEY);
 }
 
-const SYSTEM = `You are MIROIR's occasion stylist. A shopper describes an occasion (and maybe a budget); you build them a look from this store's catalogue, in the colours their skin scan says suit them.
+const SYSTEM = `You are MIROIR's occasion stylist. Build a look from this store's catalogue for the shopper's occasion, in colours their measured skin scan says suit them.
 
-Work only through the tools:
-1. read_scan - their measured colour season, palette, and whether redness is flagged today.
-2. search_catalog - pieces for the occasion. Occasions are: ${OCCASIONS.join(", ")}. Map the brief to the closest one; search a second occasion if the first returns little.
-3. rank_colours - for each piece you are considering. Prefer the colourway ranked best; never choose one whose verdict is "clash". If red_near_flagged_redness is true, prefer another colourway.
-4. propose_look - one to three pieces that work together (at most one outerwear layer). If it is rejected, fix what the error says and propose again. Always finish by calling propose_look; do not answer in plain text.
+Steps:
+1. Call find_pieces for the occasion closest to the brief (${OCCASIONS.join(", ")}); try a second occasion only if the first returns nothing usable. Each piece comes with its colourways ranked for this shopper: verdict, fit 0-100, and red=true for a red colour while redness is flagged.
+2. Call propose_look with 1-3 pieces (at most one Outerwear). Pick high-fit colourways; never a "clash"; avoid red=true when another colour works. If rejected, fix what the error says and call propose_look again. Always end with propose_look, never plain text.
 
 Rules:
-- Every fit score, colour distance and verdict comes from the tools. Never state a measurement the tools did not return.
-- Prices are in USD. Only set budget_usd when the shopper gave a budget in dollars; if it was in another currency, leave budget_usd out and say in the note that you did not convert it.
-- If redness is flagged, keep red and orange colourways away from the face and say why in the note.
-- If the catalogue has nothing suitable for the occasion, say so plainly in the note instead of stretching a piece to fit.
-- "why" is one short sentence per piece about the occasion and styling. The headline is under 8 words. The note is at most two sentences.`;
+- Never state a measurement the tools did not return.
+- Prices are USD. Set budget_usd only for a dollar budget; for any other currency leave it out and say in the note that it was not converted.
+- If redness is flagged, say in the note that reds were kept away from the face.
+- If nothing in the catalogue suits the occasion, say so in the note rather than stretching a piece.
+- headline under 8 words; note at most two sentences; "why" one short sentence per piece.`;
 
 // Plain schemas (no nullable unions): optional fields are simply omitted.
 const TOOLS = [
   {
     type: "function",
     function: {
-      name: "read_scan",
+      name: "find_pieces",
       description:
-        "Read the shopper's skin scan: colour season, palette colour names, season confidence, and whether redness is flagged on this scan. Call this first.",
-      parameters: { type: "object", properties: {}, required: [] },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "search_catalog",
-      description:
-        "List catalogue pieces for an occasion, optionally under a max price in USD. Returns ids, prices, occasions and colourway names.",
+        "Catalogue pieces for an occasion (optionally under a USD max price), each with its colourways ranked for this shopper.",
       parameters: {
         type: "object",
         properties: {
@@ -78,19 +74,6 @@ const TOOLS = [
           max_price: { type: "number", description: "USD. Omit for no limit." },
         },
         required: ["occasion"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "rank_colours",
-      description:
-        "Rank one garment's colourways against the shopper's palette: verdict (best/good/workable/clash), fit 0-100, colour distance, red flag, and a measured reason.",
-      parameters: {
-        type: "object",
-        properties: { garment_id: { type: "string" } },
-        required: ["garment_id"],
       },
     },
   },
@@ -146,12 +129,13 @@ class GroqError extends Error {
   constructor(
     readonly status: number,
     readonly detail: string,
+    readonly retryAfterS: number | null = null,
   ) {
     super(`Groq API returned ${status}`);
   }
 }
 
-async function callGroq(messages: ChatMessage[], deadline: number): Promise<ChatResponse> {
+async function callGroqOnce(messages: ChatMessage[], deadline: number): Promise<ChatResponse> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), Math.max(1, deadline - Date.now()));
   try {
@@ -168,7 +152,8 @@ async function callGroq(messages: ChatMessage[], deadline: number): Promise<Chat
       // Groq explains a 400 in the body (e.g. tool_use_failed when the model
       // emits a malformed call); keep a short copy for the server log only.
       const detail = (await res.text().catch(() => "")).slice(0, 400);
-      throw new GroqError(res.status, detail);
+      const retryAfter = Number(res.headers.get("retry-after"));
+      throw new GroqError(res.status, detail, Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : null);
     }
     return (await res.json()) as ChatResponse;
   } finally {
@@ -176,22 +161,16 @@ async function callGroq(messages: ChatMessage[], deadline: number): Promise<Chat
   }
 }
 
-function summarise(name: string, result: ToolResult): string {
-  if (!result.ok) return `Rejected: ${result.error}`;
-  const data = result.data as Record<string, unknown> | unknown[];
-  if (name === "read_scan") {
-    const d = data as { season: string; redness_flagged: boolean };
-    return `${d.season}${d.redness_flagged ? ", redness flagged" : ""}`;
+/** One retry on a rate limit, when Groq's wait fits inside the time budget. */
+async function callGroq(messages: ChatMessage[], deadline: number): Promise<ChatResponse> {
+  try {
+    return await callGroqOnce(messages, deadline);
+  } catch (err) {
+    const wait = err instanceof GroqError && err.status === 429 ? err.retryAfterS : null;
+    if (wait === null || wait > MAX_RETRY_WAIT_S || Date.now() + wait * 1000 + 5_000 > deadline) throw err;
+    await new Promise((r) => setTimeout(r, wait * 1000));
+    return callGroqOnce(messages, deadline);
   }
-  if (name === "search_catalog") {
-    const n = (data as unknown[]).length;
-    return `${n} ${n === 1 ? "piece" : "pieces"} found`;
-  }
-  if (name === "rank_colours") {
-    const top = (data as { colour: string; verdict: string; fit: number }[])[0];
-    return top ? `Top: ${top.colour} (${top.verdict}, fit ${top.fit})` : "No colourways";
-  }
-  return "Done";
 }
 
 /** Parses a tool call's JSON arguments; a malformed call becomes a tool error. */
@@ -220,26 +199,49 @@ function fallback(profile: SkinProfile, brief: string, reason: string): AgentOut
   };
 }
 
-function runTool(profile: SkinProfile, name: string, args: Record<string, unknown>): ToolResult {
-  if (name === "read_scan") return readScan(profile);
-  if (name === "search_catalog") {
-    const occasion = typeof args.occasion === "string" && args.occasion !== "any" ? args.occasion : null;
-    const maxPrice = typeof args.max_price === "number" ? args.max_price : null;
-    return searchCatalog({ occasion, max_price: maxPrice });
-  }
-  if (name === "rank_colours") return rankColours(profile, { garment_id: String(args.garment_id ?? "") });
-  return { ok: false, error: `Unknown tool ${name}` };
+// ---- cache ----------------------------------------------------------------------
+// A look depends only on the brief, the season palette and the redness flag,
+// so judges tapping the same example chip reuse one AI run. Per instance and
+// in memory: a cache miss just costs a normal run.
+
+const CACHE_MAX = 50;
+const cache = new Map<string, Look>();
+
+function cacheKey(profile: SkinProfile, brief: string): string | null {
+  if (!profile.tone) return null;
+  const redness = profile.scores.redness < REDNESS_ELEVATED_BELOW;
+  return `${profile.tone.season}|${redness}|${brief.trim().toLowerCase().replace(/\s+/g, " ")}`;
 }
+
+function remember(key: string | null, look: Look): void {
+  if (!key) return;
+  if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value!);
+  cache.set(key, look);
+}
+
+// ---- loop ------------------------------------------------------------------------
 
 export async function runOccasionAgent(profile: SkinProfile, brief: string): Promise<AgentOutcome> {
   if (!hasAgentKey()) return fallback(profile, brief, "AI stylist is off (no GROQ_API_KEY).");
 
+  const key = cacheKey(profile, brief);
+  const cached = key ? cache.get(key) : undefined;
+  if (cached) return { look: cached };
+
+  // The scan is read server-side and handed over measured, saving a turn.
+  const scan = readScan(profile);
+  if (!scan.ok) return { look: null, error: scan.error };
+  const trace: TraceStep[] = [{ tool: "read_scan", input: {}, summary: summariseScan(scan) }];
+
   const deadline = Date.now() + TIME_BUDGET_MS;
-  const trace: TraceStep[] = [];
   const messages: ChatMessage[] = [
     { role: "system", content: SYSTEM },
-    { role: "user", content: `Occasion brief: ${brief}` },
+    {
+      role: "user",
+      content: `Measured scan: ${JSON.stringify(scan.data)}\nOccasion brief: ${brief}`,
+    },
   ];
+  let nudged = false;
 
   try {
     for (let turn = 0; turn < MAX_TURNS; turn++) {
@@ -251,9 +253,9 @@ export async function runOccasionAgent(profile: SkinProfile, brief: string): Pro
 
       const calls = reply.tool_calls ?? [];
       if (calls.length === 0) {
-        // Ended without an accepted look: one nudge back to the tools, then give up.
-        if (turn < MAX_TURNS - 1 && !trace.some((s) => s.tool === "nudge")) {
-          trace.push({ tool: "nudge", input: {}, summary: "Asked to finish with propose_look" });
+        // Answered in plain text: one nudge back to the tools, then give up.
+        if (!nudged) {
+          nudged = true;
           messages.push({ role: "user", content: "Finish by calling propose_look with your look." });
           continue;
         }
@@ -286,14 +288,29 @@ export async function runOccasionAgent(profile: SkinProfile, brief: string): Pro
             summary: proposed.ok ? `Accepted, $${proposed.look.total}` : `Rejected: ${proposed.error}`,
           });
           if (proposed.ok) {
-            return { look: { ...proposed.look, source: "ai", trace: trace.filter((s) => s.tool !== "nudge") } };
+            const look: Look = { ...proposed.look, source: "ai", trace };
+            remember(key, look);
+            return { look };
           }
           answer(JSON.stringify({ error: proposed.error }));
           continue;
         }
 
-        const result = runTool(profile, name, args);
-        trace.push({ tool: name, input: args, summary: summarise(name, result) });
+        let result: ToolResult;
+        if (name === "find_pieces") {
+          const occasion = typeof args.occasion === "string" && args.occasion !== "any" ? args.occasion : null;
+          const maxPrice = typeof args.max_price === "number" ? args.max_price : null;
+          result = findPieces(profile, { occasion, max_price: maxPrice });
+        } else {
+          result = { ok: false, error: `Unknown tool ${name}. Use find_pieces or propose_look.` };
+        }
+        trace.push({
+          tool: name,
+          input: args,
+          summary: result.ok
+            ? `${(result.data as unknown[]).length} pieces, colours ranked`
+            : `Rejected: ${result.error}`,
+        });
         answer(JSON.stringify(result.ok ? result.data : { error: result.error }));
       }
     }
@@ -311,4 +328,10 @@ export async function runOccasionAgent(profile: SkinProfile, brief: string): Pro
     // Network failure or a malformed reply: never break the demo over it.
     return fallback(profile, brief, "The AI stylist is unavailable right now.");
   }
+}
+
+function summariseScan(scan: ToolResult): string {
+  if (!scan.ok) return `Rejected: ${scan.error}`;
+  const d = scan.data as { season: string; redness_flagged: boolean };
+  return `${d.season}${d.redness_flagged ? ", redness flagged" : ""}`;
 }
