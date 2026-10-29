@@ -20,7 +20,6 @@
     "probe": "node scripts/probe-skin.mjs"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^1.3.0",
     "@mediapipe/tasks-vision": "^1.0.0",
     "@vercel/blob": "^2.6.1",
     "lucide-react": "^1.26.0",

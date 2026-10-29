@@ -6,7 +6,7 @@
 // and the catalogue, and `proposeLook` rejects a look that is over budget or
 // wears a colour that clashes with the shopper's palette. Pure and
 // deterministic, so it is unit-tested (scripts/agent.test.mjs) and shared by
-// the Claude loop and the fallback planner.
+// the Grok loop and the fallback planner.
 
 import {
   GARMENTS,
@@ -46,8 +46,8 @@ export interface Look {
   items: LookItem[];
   total: number;
   budget: number | null;
-  /** Who planned it: Claude with these tools, or the rules-only fallback. */
-  source: "claude" | "rules";
+  /** Who planned it: Grok with these tools, or the rules-only fallback. */
+  source: "grok" | "rules";
   trace: TraceStep[];
 }
 

@@ -25,8 +25,8 @@ colour of that same item suits you — and shows it on you before you buy."*
       "On *my* body" only works if it is you.
 - [ ] `PERFECTCORP_API_KEY` set and a Blob store connected, so both try-ons
       come back `source: perfectcorp` — not the recoloured preview.
-- [ ] AI stylist: with `ANTHROPIC_API_KEY` set, the card says **"Planned by
-      Claude with measured tools"**. Without it, it says **"Planned by rules"**
+- [ ] AI stylist: with `XAI_API_KEY` set, the card says **"Planned by
+      Grok with measured tools"**. Without it, it says **"Planned by rules"**
       — then use the "rules" line in beat 4 and do not claim AI.
 - [ ] **Dry run** the proof shot and the stylist once. Results are cached per
       colour, so the take is fast.
@@ -79,7 +79,7 @@ colour of that same item suits you — and shows it on you before you buy."*
 
 - **Do:** type or tap **"Smart-casual brunch on Sunday, under $130"** →
   **Style me**. Open **"How it decided"**.
-- **Say (Claude on):** "Now I just say where I'm going. The stylist reads my
+- **Say (Grok on):** "Now I just say where I'm going. The stylist reads my
   scan, searches the collection, ranks every colour and builds a look under
   budget. It's an agent — but it can't invent a measurement: every score here
   comes from the tools, and if it picks a clashing colour or goes over budget,

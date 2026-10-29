@@ -1,17 +1,20 @@
-// Server-only: the occasion stylist's agent loop.
+// Server-only: the occasion stylist's agent loop, on xAI's Grok.
 //
-// Claude reads the brief, then works through the same tools the rules planner
+// Grok reads the brief, then works through the same tools the rules planner
 // uses (lib/agent/tools.ts): read the scan, search the catalogue for the
 // occasion, rank each candidate's colourways, and propose a look. It plans and
 // writes the "why"; it never produces a measurement. proposeLook validates the
 // look (real ids, no clashing colourway, within budget) and the loop ends only
 // on a look that passes.
 //
-// Any failure (no key, API error, refusal, time budget) falls back to the
-// rules planner with a labelled note, so the demo never breaks.
+// Uses xAI's Responses API: tool calls arrive as `function_call` output items
+// and results go back as `function_call_output` items, chained to the previous
+// response with `previous_response_id`.
+//
+// Any failure (no key, API error, time budget) falls back to the rules planner
+// with a labelled note, so the demo never breaks.
 
 import "server-only";
-import Anthropic from "@anthropic-ai/sdk";
 import type { SkinProfile } from "@/lib/skin";
 import { OCCASIONS } from "@/lib/fashion/products";
 import {
@@ -26,13 +29,14 @@ import {
   type TraceStep,
 } from "@/lib/agent/tools";
 
-const MODEL = "claude-opus-5-5";
+const ENDPOINT = "https://api.x.ai/v1/responses";
+const MODEL = "grok-4.7";
 const MAX_TURNS = 8;
 /** Leave headroom under the route's 60s maxDuration for the fallback. */
 const TIME_BUDGET_MS = 45_000;
 
 export function hasAgentKey(): boolean {
-  return Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
+  return Boolean(process.env.XAI_API_KEY);
 }
 
 const SYSTEM = `You are MIROIR's occasion stylist. A shopper describes an occasion (and maybe a budget); you build them a look from this store's catalogue, in the colours their skin scan says suit them.
@@ -41,7 +45,7 @@ Work only through the tools:
 1. read_scan - their measured colour season, palette, and whether redness is flagged today.
 2. search_catalog - pieces for the occasion. Occasions are: ${OCCASIONS.join(", ")}. Map the brief to the closest one; search a second occasion if the first returns little.
 3. rank_colours - for each piece you are considering. Prefer the colourway ranked best; never choose one whose verdict is "clash".
-4. propose_look - one to three pieces that work together (at most one outerwear layer). If it is rejected, fix what the error says and propose again.
+4. propose_look - one to three pieces that work together (at most one outerwear layer). If it is rejected, fix what the error says and propose again. Always finish by calling propose_look; do not answer in plain text.
 
 Rules:
 - Every fit score, colour distance and verdict comes from the tools. Never state a measurement the tools did not return.
@@ -50,19 +54,20 @@ Rules:
 - If the catalogue has nothing suitable for the occasion, say so plainly in the note instead of stretching a piece to fit.
 - "why" is one short sentence per piece about the occasion and styling. The headline is under 8 words. The note is at most two sentences.`;
 
-const TOOLS: Anthropic.Beta.BetaTool[] = [
+const TOOLS = [
   {
+    type: "function",
     name: "read_scan",
     description:
       "Read the shopper's skin scan: colour season, palette colour names, season confidence, and whether redness is flagged on this scan. Call this first.",
-    input_schema: { type: "object", properties: {}, required: [], additionalProperties: false },
-    strict: true,
+    parameters: { type: "object", properties: {}, required: [], additionalProperties: false },
   },
   {
+    type: "function",
     name: "search_catalog",
     description:
       "List catalogue pieces for an occasion, optionally under a max price in USD. Returns ids, prices, occasions and colourway names.",
-    input_schema: {
+    parameters: {
       type: "object",
       properties: {
         occasion: { type: ["string", "null"], enum: [...OCCASIONS, null] },
@@ -71,25 +76,25 @@ const TOOLS: Anthropic.Beta.BetaTool[] = [
       required: ["occasion", "max_price"],
       additionalProperties: false,
     },
-    strict: true,
   },
   {
+    type: "function",
     name: "rank_colours",
     description:
       "Rank one garment's colourways against the shopper's palette: verdict (best/good/workable/clash), fit 0-100, colour distance, and a measured reason.",
-    input_schema: {
+    parameters: {
       type: "object",
       properties: { garment_id: { type: "string" } },
       required: ["garment_id"],
       additionalProperties: false,
     },
-    strict: true,
   },
   {
+    type: "function",
     name: "propose_look",
     description:
       "Submit the final look. The store validates ids, rejects clashing colourways and looks over budget, and computes the total itself.",
-    input_schema: {
+    parameters: {
       type: "object",
       properties: {
         headline: { type: "string" },
@@ -112,9 +117,47 @@ const TOOLS: Anthropic.Beta.BetaTool[] = [
       required: ["headline", "note", "budget_usd", "items"],
       additionalProperties: false,
     },
-    strict: true,
   },
 ];
+
+/** The parts of a Responses API reply this loop reads. */
+interface GrokOutputItem {
+  type: string;
+  name?: string;
+  arguments?: string;
+  call_id?: string;
+  content?: { type?: string; text?: string }[];
+}
+interface GrokResponse {
+  id: string;
+  output?: GrokOutputItem[];
+}
+
+class GrokError extends Error {
+  constructor(readonly status: number) {
+    super(`xAI API returned ${status}`);
+  }
+}
+
+async function callGrok(body: Record<string, unknown>, deadline: number): Promise<GrokResponse> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), Math.max(1, deadline - Date.now()));
+  try {
+    const res = await fetch(ENDPOINT, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.XAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new GrokError(res.status);
+    return (await res.json()) as GrokResponse;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 function summarise(name: string, result: ToolResult): string {
   if (!result.ok) return `Rejected: ${result.error}`;
@@ -134,10 +177,20 @@ function summarise(name: string, result: ToolResult): string {
   return "Done";
 }
 
+/** Parses a tool call's JSON arguments; a malformed call becomes a tool error. */
+function parseArgs(raw: string | undefined): Record<string, unknown> | null {
+  try {
+    const v = JSON.parse(raw || "{}");
+    return v && typeof v === "object" && !Array.isArray(v) ? v : null;
+  } catch {
+    return null;
+  }
+}
+
 export interface AgentOutcome {
   look: Look | null;
   error?: string;
-  /** Why the rules planner ran instead of Claude, when it did. */
+  /** Why the rules planner ran instead of Grok, when it did. */
   fellBack?: string;
 }
 
@@ -151,95 +204,96 @@ function fallback(profile: SkinProfile, brief: string, reason: string): AgentOut
 }
 
 export async function runOccasionAgent(profile: SkinProfile, brief: string): Promise<AgentOutcome> {
-  if (!hasAgentKey()) return fallback(profile, brief, "AI stylist is off (no ANTHROPIC_API_KEY).");
+  if (!hasAgentKey()) return fallback(profile, brief, "AI stylist is off (no XAI_API_KEY).");
 
-  const client = new Anthropic();
-  const started = Date.now();
+  const deadline = Date.now() + TIME_BUDGET_MS;
   const trace: TraceStep[] = [];
-  const messages: Anthropic.Beta.BetaMessageParam[] = [
+  let previousId: string | null = null;
+  let input: unknown[] = [
+    { role: "system", content: SYSTEM },
     { role: "user", content: `Occasion brief: ${brief}` },
   ];
 
   try {
     for (let turn = 0; turn < MAX_TURNS; turn++) {
-      if (Date.now() - started > TIME_BUDGET_MS) {
-        return fallback(profile, brief, "The stylist ran out of time.");
-      }
+      if (Date.now() > deadline) return fallback(profile, brief, "The stylist ran out of time.");
 
-      const response = await client.beta.messages.create({
-        model: MODEL,
-        max_tokens: 16000,
-        system: SYSTEM,
-        tools: TOOLS,
-        messages,
-        output_config: { effort: "low" },
-        betas: ["server-side-fallback-2026-07-01"],
-        fallbacks: "default",
-      });
-
-      if (response.stop_reason === "refusal") {
-        return fallback(profile, brief, "The stylist declined this brief.");
-      }
-      messages.push({ role: "assistant", content: response.content });
-
-      const calls = response.content.filter(
-        (b): b is Anthropic.Beta.BetaToolUseBlock => b.type === "tool_use",
+      const response = await callGrok(
+        {
+          model: MODEL,
+          input,
+          tools: TOOLS,
+          tool_choice: "auto",
+          ...(previousId ? { previous_response_id: previousId } : {}),
+        },
+        deadline,
       );
+      previousId = response.id;
+
+      const output = response.output ?? [];
+      const calls = output.filter((o) => o.type === "function_call");
       if (calls.length === 0) {
         // Ended without an accepted look: surface what it said.
-        const text = response.content
-          .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text")
-          .map((b) => b.text)
+        const text = output
+          .filter((o) => o.type === "message")
+          .flatMap((o) => o.content ?? [])
+          .map((c) => c.text ?? "")
           .join(" ")
           .trim();
         return { look: null, error: text || "The stylist did not propose a look." };
       }
 
-      const results: Anthropic.Beta.BetaToolResultBlockParam[] = [];
+      const results: unknown[] = [];
       for (const call of calls) {
-        const input = (call.input ?? {}) as Record<string, unknown>;
-        if (call.name === "propose_look") {
-          const proposed = proposeLook(profile, input as unknown as ProposeInput);
+        const name = call.name ?? "";
+        const args = parseArgs(call.arguments);
+        const reply = (output: string) =>
+          results.push({ type: "function_call_output", call_id: call.call_id, output });
+
+        if (!args) {
+          trace.push({ tool: name, input: {}, summary: "Rejected: arguments were not valid JSON" });
+          reply(JSON.stringify({ error: "Arguments were not valid JSON. Call the tool again." }));
+          continue;
+        }
+
+        if (name === "propose_look") {
+          const proposed = proposeLook(profile, args as unknown as ProposeInput);
           trace.push({
-            tool: call.name,
-            input: { items: (input.items as unknown[] | undefined)?.length ?? 0 },
+            tool: name,
+            input: { items: Array.isArray(args.items) ? args.items.length : 0 },
             summary: proposed.ok ? `Accepted, $${proposed.look.total}` : `Rejected: ${proposed.error}`,
           });
-          if (proposed.ok) return { look: { ...proposed.look, source: "claude", trace } };
-          results.push({ type: "tool_result", tool_use_id: call.id, content: proposed.error, is_error: true });
+          if (proposed.ok) return { look: { ...proposed.look, source: "grok", trace } };
+          reply(JSON.stringify({ error: proposed.error }));
           continue;
         }
 
         const result =
-          call.name === "read_scan"
+          name === "read_scan"
             ? readScan(profile)
-            : call.name === "search_catalog"
-              ? searchCatalog(input as { occasion?: string | null; max_price?: number | null })
-              : call.name === "rank_colours"
-                ? rankColours(profile, input as { garment_id: string })
-                : ({ ok: false, error: `Unknown tool ${call.name}` } as ToolResult);
-        trace.push({ tool: call.name, input, summary: summarise(call.name, result) });
-        results.push({
-          type: "tool_result",
-          tool_use_id: call.id,
-          content: JSON.stringify(result.ok ? result.data : { error: result.error }),
-          is_error: !result.ok,
-        });
+            : name === "search_catalog"
+              ? searchCatalog(args as { occasion?: string | null; max_price?: number | null })
+              : name === "rank_colours"
+                ? rankColours(profile, args as { garment_id: string })
+                : ({ ok: false, error: `Unknown tool ${name}` } as ToolResult);
+        trace.push({ tool: name, input: args, summary: summarise(name, result) });
+        reply(JSON.stringify(result.ok ? result.data : { error: result.error }));
       }
-      // All results for one assistant turn go back in a single user message.
-      messages.push({ role: "user", content: results });
+      // Only the new tool outputs: the earlier turns live on the server,
+      // chained through previous_response_id.
+      input = results;
     }
     return fallback(profile, brief, "The stylist did not settle on a look.");
   } catch (err) {
-    if (err instanceof Anthropic.RateLimitError) {
-      return fallback(profile, brief, "The AI stylist is busy right now.");
+    if (err instanceof GrokError) {
+      if (err.status === 401 || err.status === 403) return fallback(profile, brief, "The AI key was rejected.");
+      if (err.status === 429) return fallback(profile, brief, "The AI stylist is busy right now.");
+      return fallback(profile, brief, `The AI stylist is unavailable (${err.status}).`);
     }
-    if (err instanceof Anthropic.AuthenticationError) {
-      return fallback(profile, brief, "The AI key was rejected.");
+    if (err instanceof Error && err.name === "AbortError") {
+      return fallback(profile, brief, "The stylist ran out of time.");
     }
-    if (err instanceof Anthropic.APIError) {
-      return fallback(profile, brief, `The AI stylist is unavailable (${err.status ?? "network"}).`);
-    }
-    throw err;
+    // Network failure or a malformed reply: never break the demo over it.
+    return fallback(profile, brief, "The AI stylist is unavailable right now.");
   }
 }

@@ -51,7 +51,7 @@ own body** so you can see the difference instead of taking our word for it.
 | **The agent** | On `/fashion`: **Occasion stylist** → "Style me" → open **"How it decided"** to see every tool call |
 | **Both APIs, wired** | `src/lib/perfectcorp.ts` (Skin Analysis S2S) · `src/lib/fashion/vto.ts` (Apparel VTO S2S) |
 | **The colour engine** | `src/lib/season.ts` (season) · `src/lib/fashion/colourways.ts` (which colourway) |
-| **The agent's tools** | `src/lib/agent/tools.ts` (pure, tested) · `src/lib/agent/run.ts` (Claude loop) |
+| **The agent's tools** | `src/lib/agent/tools.ts` (pure, tested) · `src/lib/agent/run.ts` (Grok loop) |
 | **How honest it is** | [`data/seasons/README.md`](data/seasons/README.md) — what is validated, what is not, and the exact wording we will not use |
 | **It runs on your machine** | `npm install && npm run dev` — works with **zero keys**, in labelled demo mode |
 | **It verifies itself** | `npm test` — 349 assertions across nine suites |
@@ -72,7 +72,7 @@ period, on top of that codebase. The commits are on the
 | **Colourway picker, try-on and cart per colour.** Swatches marked best / clash on every card and in the fitting room; Apparel VTO renders the chosen colourway; the bag keeps it as its own line. | The recommendation now reaches the purchase, not just a badge. | `f0f9e4f` |
 | **Faithful recolouring.** Lightness is remapped toward the target (median-matched, so dark linings don't skew it). | The old recolour kept the photo's lightness, so a dark colour on a light garment came out pastel, and its saturation boost tinted greys red. | `f0f9e4f` |
 | **Proof shot rebuilt.** One real garment, rendered on you twice: our pick vs. the colour in the product photo. | It shows the purchase being corrected, not an abstract "clash colour". | `f0f9e4f` |
-| **Occasion stylist (agent).** Describe the occasion and budget; Claude plans through four tools (`read_scan`, `search_catalog`, `rank_colours`, `propose_look`). Fit, colour distance, verdict and total all come from the tools; `propose_look` rejects invented items, clashing colours and looks over budget, and the model must fix and resubmit. Without an AI key, a rules planner runs the same tools and the card says so. | An agent workflow whose output is measured, not generated. | `38f07ef` |
+| **Occasion stylist (agent).** Describe the occasion and budget; Grok plans through four tools (`read_scan`, `search_catalog`, `rank_colours`, `propose_look`). Fit, colour distance, verdict and total all come from the tools; `propose_look` rejects invented items, clashing colours and looks over budget, and the model must fix and resubmit. Without an AI key, a rules planner runs the same tools and the card says so. | An agent workflow whose output is measured, not generated. | `38f07ef` |
 | **110 new test assertions** (239 → 349) covering ranking, recolour maths, the proof choice, per-colour cart lines, every agent tool and the rules planner. | The new behaviour is pinned, not just demoed. | all |
 
 ---
@@ -201,7 +201,7 @@ is chasing noise. Collection protocol in [`data/seasons/README.md`](data/seasons
 An agent that plans, but cannot measure.
 
 ```
-brief ──► Claude ──► read_scan        season, palette, redness flagged today
+brief ──► Grok ────► read_scan        season, palette, redness flagged today
                  ├─► search_catalog   pieces tagged for the occasion, under budget
                  ├─► rank_colours     each candidate's colourways, fit + ΔE + verdict
                  └─► propose_look ──► validated: real ids, no clashing colour,
@@ -215,8 +215,8 @@ brief ──► Claude ──► read_scan        season, palette, redness flagg
   "why" for each piece.
 - **Every step is visible.** "How it decided" lists each tool call and what it
   returned.
-- **It degrades, never breaks.** No `ANTHROPIC_API_KEY`, an API error, a
-  refusal or the 45-second budget → a rules planner runs the same tools and
+- **It degrades, never breaks.** No `XAI_API_KEY`, an API or network error,
+  or the 45-second budget → a rules planner runs the same tools and
   the card is labelled "Planned by rules".
 - **It won't guess a currency.** Prices are USD; a ₹ or € budget is left unset
   and the note says so, rather than converting at an invented rate.
@@ -255,7 +255,7 @@ brief ──► Claude ──► read_scan        season, palette, redness flagg
 ```bash
 npm install
 cp .env.example .env.local   # PERFECTCORP_API_KEY for the YouCam APIs,
-                             # ANTHROPIC_API_KEY for the AI stylist (both optional)
+                             # XAI_API_KEY for the AI stylist (both optional)
 npm run dev                  # http://localhost:3000
 
 npm test                     # 349 assertions, nine suites
@@ -286,7 +286,7 @@ src/
     fashion/colourways.ts         # Colourway ranking (CIELAB ΔE to palette)
     fashion/recolor.ts            # Colourway rendering; lightness.ts = its maths
     agent/tools.ts                # Agent tools + rules planner (pure, tested)
-    agent/run.ts                  # Claude tool loop (server-only)
+    agent/run.ts                  # Grok tool loop (server-only)
     color.ts                      # CIELAB / ITA° primitives + season palettes
     season.ts                     # Three-axis twelve-tone engine
     agreement.ts                  # Cohen's / Fleiss' / weighted kappa
@@ -328,7 +328,7 @@ Skin Analysis and Apparel VTO by **Perfect Corp · YouCam API**. Face landmarkin
 by **MediaPipe** (Apache-2.0). Skincare product imagery is generated in-app
 (owned SVG).
 
-Occasion planning by **Claude** (Anthropic API), when a key is configured.
+Occasion planning by **Grok** (xAI API, `grok-4.7`), when a key is configured.
 
 **Demo catalog.** The twelve skincare products and six garments are
 demonstration data with placeholder imagery, not real inventory. Garment

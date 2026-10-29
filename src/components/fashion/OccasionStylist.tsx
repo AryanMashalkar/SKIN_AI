@@ -17,7 +17,7 @@ const EXAMPLES = [
 type Phase = "idle" | "running" | "done" | "error";
 
 /**
- * Occasion in, look out. The stylist (Claude, or the rules planner without a
+ * Occasion in, look out. The stylist (Grok, or the rules planner without a
  * key) picks pieces and colourways through measured tools; the card shows the
  * measured fit and reason for each, plus the steps it took.
  */
@@ -128,13 +128,13 @@ function LookCard({ look }: { look: Look }) {
         <div>
           <span
             className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
-              look.source === "claude"
+              look.source === "grok"
                 ? "bg-[#d9a679]/20 text-[#e9d9be]"
                 : "bg-white/10 text-white/60"
             }`}
           >
-            {look.source === "claude" ? <Bot className="h-3 w-3" /> : <ListChecks className="h-3 w-3" />}
-            {look.source === "claude" ? "Planned by Claude with measured tools" : "Planned by rules"}
+            {look.source === "grok" ? <Bot className="h-3 w-3" /> : <ListChecks className="h-3 w-3" />}
+            {look.source === "grok" ? "Planned by Grok with measured tools" : "Planned by rules"}
           </span>
           <h3 className="mt-2 text-lg font-semibold">{look.headline}</h3>
           {look.note && <p className="mt-1 max-w-2xl text-sm text-white/60">{look.note}</p>}
