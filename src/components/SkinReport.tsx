@@ -144,9 +144,9 @@ export function SkinReport({ profile }: { profile: SkinProfile }) {
 
             {profile.tone.lowConfidence && (
               <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-[11px] text-amber-700">
-                Lower confidence — your lighting looked uneven or your face
-                didn&apos;t fill the frame. Rescan in brighter, even light for a
-                sharper colour read.
+                {profile.tone.measuredBy === "youcam"
+                  ? "Lower confidence — YouCam rated the lighting in this photo less than good. Rescan in brighter, even light for a sharper colour read."
+                  : "Lower confidence — your lighting looked uneven or your face didn't fill the frame. Rescan in brighter, even light for a sharper colour read."}
               </p>
             )}
 
@@ -198,8 +198,10 @@ export function SkinReport({ profile }: { profile: SkinProfile }) {
               </div>
             </details>
             <p className="mt-3 text-[11px] text-stone-400">
-              Skin tone measured from your photo (CIELAB · ITA°). Try these
-              colours on in the fitting room below.
+              {profile.tone.measuredBy === "youcam"
+                ? "Skin, eye and hair colour measured by the YouCam Facial Color Tones Analyzer; season computed from them (CIELAB · ITA°)."
+                : "Skin tone measured from your photo (CIELAB · ITA°)."}{" "}
+              Try these colours on in the fitting room below.
             </p>
           </div>
         )}

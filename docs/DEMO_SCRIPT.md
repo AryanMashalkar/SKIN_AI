@@ -32,8 +32,8 @@ colour of that same item suits you — and shows it on you before you buy."*
       colour, so the take is fast.
 - [ ] **Burn in captions** (CapCut / YouTube Studio). Auto-captions previously
       heard "YouCam" as "UKAM"; judges may be watching with captions on.
-- [ ] Speak slower than feels natural. Say **"YouCam Skin Analysis"** and
-      **"YouCam Apparel VTO"** clearly, once each, while they are on screen.
+- [ ] Speak slower than feels natural. Say **"YouCam Skin Analysis"**,
+      **"YouCam Facial Color Tones Analyzer"** and **"YouCam Apparel VTO"** clearly, once each, while they are on screen.
 
 ---
 
@@ -60,9 +60,11 @@ colour of that same item suits you — and shows it on you before you buy."*
 - **Point at:** the concern gauges, then the colour season with its
   **confidence bar**.
 - **Say:** "One selfie. **YouCam Skin Analysis** scores eleven skin concerns —
-  including redness, which matters in a minute. From the same photo, MIROIR
-  measures skin, hair and eye colour and places me in a season — Deep Autumn,
-  with how confident it is."
+  including redness, which matters in a minute. At the same time, the **YouCam
+  Facial Color Tones Analyzer** measures my skin, hair and eye colour, and
+  MIROIR turns that into a season — Deep Autumn, with how confident it is."
+- **Point at:** the line under the season card that says the colours were
+  measured by YouCam (it only says so when that call succeeded).
 
 ## 1:05–1:40 — The right colourway (the engine + YouCam Apparel VTO)
 
@@ -92,9 +94,9 @@ colour of that same item suits you — and shows it on you before you buy."*
 
 - **On screen:** the README's **"Updated during the submission period"** table,
   or the look card with the bag.
-- **Say:** "Skin Analysis picks the colour, Apparel VTO proves it on you, and
+- **Say:** "Skin Analysis and the Color Tones Analyzer read me, Apparel VTO proves the colour on me, and
   the stylist plans the whole look — every number measured, three hundred and
-  seventy-five tests, and your photo is deleted the moment the render finishes.
+  eighty-eight tests, and your photo is deleted the moment the render finishes.
   That's MIROIR."
 
 ---

@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { hasApiKey, runSkinAnalysis } from "@/lib/perfectcorp";
+import { runToneAnalysis, type MeasuredColours } from "@/lib/tone-api";
 import { normalizeApiResult, type SkinProfile } from "@/lib/skin";
 import { analyzeAppearance } from "@/lib/season";
 import { check, clientKey, rateLimitHeaders, RULES } from "@/lib/rate-limit";
@@ -11,10 +12,11 @@ export const dynamic = "force-dynamic";
 // `perfectcorp.ts` is sized to return a real response inside this window.
 export const maxDuration = 60;
 
-/** Hard cap on the uploaded selfie (5 MB); the client downscales well below. */
-// Matches MAX_UPLOAD_BYTES; Vercel's own 4.5 MB body limit sits just above.
+/** Hard cap on the uploaded selfie; matches MAX_UPLOAD_BYTES, just under Vercel's 4.5 MB body limit. */
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+/** The Facial Color Tones Analyzer takes jpg/png only. */
+const TONE_TYPES = ["image/jpeg", "image/png"];
 
 interface AnalyzeResponse {
   profile: SkinProfile;
@@ -56,20 +58,24 @@ export async function POST(request: NextRequest) {
     // no/invalid form body
   }
 
-  // Attach the personal-colour analysis. Skin colour is sampled in the browser
-  // (from the face region of the scan photo) and passed as `skinHex`; hair and
-  // eye colour are optionally supplied by the user. All three feed the
-  // three-axis season model — the server stays pure, no native image decoding.
-  function withTone(profile: SkinProfile): SkinProfile {
-    if (skinHex) {
+  // Attach the personal-colour analysis. With a key, skin, eye and hair colour
+  // come from YouCam's Facial Color Tones Analyzer (`measured`). Without one,
+  // or if that call fails, skin colour is the in-browser sample of the face
+  // region (`skinHex`) and hair/eye are the swatches the user picked. All three
+  // feed the three-axis season model — the server stays pure, no native image
+  // decoding.
+  function withTone(profile: SkinProfile, measured: MeasuredColours | null = null): SkinProfile {
+    const skin = measured?.skin ?? skinHex;
+    if (skin) {
       try {
         profile.tone = {
           ...analyzeAppearance({
-            skin: skinHex,
-            hair: hairHex ?? undefined,
-            eye: eyeHex ?? undefined,
+            skin,
+            hair: measured?.hair ?? hairHex ?? undefined,
+            eye: measured?.eye ?? eyeHex ?? undefined,
           }),
-          lowConfidence: !skinConfident,
+          lowConfidence: measured ? measured.lighting !== undefined && measured.lighting !== "good" : !skinConfident,
+          measuredBy: measured ? "youcam" : "photo-sample",
         };
       } catch {
         /* tone is optional */
@@ -102,7 +108,7 @@ export async function POST(request: NextRequest) {
         {
           profile: withTone(mockSkinProfile()),
           source: "mock",
-          note: "That photo is larger than 5 MB — please use a smaller image.",
+          note: "That photo is larger than 4 MB — please use a smaller image.",
         },
         413,
       );
@@ -110,13 +116,34 @@ export async function POST(request: NextRequest) {
     // Only forward a content type we actually accept, rather than echoing the
     // client-supplied value straight into the upstream file-register call.
     const contentType = ACCEPTED_TYPES.includes(file.type) ? file.type : "image/jpeg";
-    const fileName = "scan.jpg";
-    const raw = await runSkinAnalysis(bytes, fileName, contentType);
-    const profile = withTone(normalizeApiResult(raw));
-    return json({ profile, source: "perfectcorp" });
+
+    // Both YouCam analyses run in parallel, so measuring colour adds no wait.
+    // Either can fail on its own: concern scores fall back to simulated ones,
+    // colours fall back to the in-browser sample.
+    const [skinRun, toneRun] = await Promise.allSettled([
+      runSkinAnalysis(bytes, "scan.jpg", contentType),
+      TONE_TYPES.includes(contentType)
+        ? runToneAnalysis(bytes, contentType)
+        : Promise.reject(new Error(`tone analysis does not accept ${contentType}`)),
+    ]);
+    const measured = toneRun.status === "fulfilled" ? toneRun.value : null;
+    if (toneRun.status === "rejected") {
+      console.error(`[analyze] tone analysis failed, using the photo sample: ${String(toneRun.reason)}`);
+    }
+
+    if (skinRun.status === "fulfilled") {
+      return json({ profile: withTone(normalizeApiResult(skinRun.value), measured), source: "perfectcorp" });
+    }
+    // Skin Analysis failed — never break the demo: simulated concern scores,
+    // but a real colour reading.
+    const reason = skinRun.reason;
+    const message = reason instanceof Error ? reason.message : "unknown error";
+    return json({
+      profile: withTone(mockSkinProfile(), measured),
+      source: "mock",
+      note: `Live analysis failed (${message}) — showing simulated scores; colours ${measured ? "measured by YouCam" : "measured from your photo"}.`,
+    });
   } catch (err) {
-    // Live call failed — never break the demo, fall back to mock scores but
-    // keep the real sampled tone.
     const message = err instanceof Error ? err.message : "unknown error";
     return json({
       profile: withTone(mockSkinProfile()),

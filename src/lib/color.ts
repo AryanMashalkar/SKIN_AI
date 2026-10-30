@@ -44,6 +44,11 @@ export interface SkinTone {
   /** True when the underlying skin-colour sample was low-confidence. */
   lowConfidence?: boolean;
   /**
+   * Where the colours came from: YouCam's Facial Color Tones Analyzer, or the
+   * in-browser sample of the face region (no key, or that call failed).
+   */
+  measuredBy?: "youcam" | "photo-sample";
+  /**
    * Full three-axis season analysis, when hair/eye colour were available.
    * Type-only import: season.ts imports values from here, so a value import
    * back would create a cycle.
