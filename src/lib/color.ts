@@ -44,10 +44,27 @@ export interface SkinTone {
   /** True when the underlying skin-colour sample was low-confidence. */
   lowConfidence?: boolean;
   /**
-   * Where the colours came from: YouCam's Facial Color Tones Analyzer, or the
-   * in-browser sample of the face region (no key, or that call failed).
+   * Where the skin colour came from: the in-browser, white-balanced sample of
+   * the face (preferred: it follows the photo's pixels), or YouCam's Facial
+   * Color Tones Analyzer when there is no sample.
    */
   measuredBy?: "youcam" | "photo-sample";
+  /** Where hair and eye colour came from. */
+  hairEyeBy?: "youcam" | "swatches";
+  /**
+   * Both skin readings side by side, when both exist. YouCam's skin colour is
+   * repeatable but lighting-normalised, so it can sit far from the photo's
+   * pixels; disagreement lowers confidence instead of being hidden.
+   */
+  crossCheck?: {
+    photoHex: string;
+    youcamHex: string;
+    /** CIE76 distance between the two skin readings. */
+    deltaE: number;
+    photoSeason: string;
+    youcamSeason: string;
+    agree: boolean;
+  };
   /**
    * Full three-axis season analysis, when hair/eye colour were available.
    * Type-only import: season.ts imports values from here, so a value import

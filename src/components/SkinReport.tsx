@@ -18,7 +18,7 @@ import {
   SEVERITY_META,
   type SkinProfile,
 } from "@/lib/skin";
-import { UNDERTONE_LABEL, DEPTH_LABEL } from "@/lib/color";
+import { UNDERTONE_LABEL, DEPTH_LABEL, type SkinTone } from "@/lib/color";
 import { heroPick, bestValuePick } from "@/lib/matching";
 import { deriveStyleProfile } from "@/lib/fashion/styling";
 import { ConcernGauge } from "@/components/ConcernGauge";
@@ -149,9 +149,11 @@ export function SkinReport({ profile }: { profile: SkinProfile }) {
 
             {profile.tone.lowConfidence && (
               <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-[11px] text-amber-700">
-                {profile.tone.measuredBy === "youcam"
-                  ? "Lower confidence — YouCam rated the lighting in this photo less than good. Rescan in brighter, even light for a sharper colour read."
-                  : "Lower confidence — your lighting looked uneven or your face didn't fill the frame. Rescan in brighter, even light for a sharper colour read."}
+                {profile.tone.crossCheck && !profile.tone.crossCheck.agree
+                  ? "Lower confidence — your photo and YouCam's colour analyzer disagree about your skin colour (see below). A rescan in bright, even daylight usually brings them together."
+                  : profile.tone.measuredBy === "youcam"
+                    ? "Lower confidence — YouCam rated the lighting in this photo less than good. Rescan in brighter, even light for a sharper colour read."
+                    : "Lower confidence — your lighting looked uneven or your face didn't fill the frame. Rescan in brighter, even light for a sharper colour read."}
               </p>
             )}
 
@@ -202,11 +204,17 @@ export function SkinReport({ profile }: { profile: SkinProfile }) {
                 )}
               </div>
             </details>
+            {profile.tone.crossCheck && <CrossCheck check={profile.tone.crossCheck} />}
+
             <p className="mt-3 text-[11px] text-stone-400">
               {profile.tone.measuredBy === "youcam"
-                ? "Skin, eye and hair colour measured by the YouCam Facial Color Tones Analyzer; season computed from them (CIELAB · ITA°)."
-                : "Skin tone measured from your photo (CIELAB · ITA°)."}{" "}
-              Try these colours on in the fitting room below.
+                ? "Skin colour measured by the YouCam Facial Color Tones Analyzer"
+                : "Skin colour measured from your photo, white-balanced"}
+              {profile.tone.hairEyeBy === "youcam"
+                ? "; hair and eye colour by the YouCam Facial Color Tones Analyzer"
+                : ""}
+              . Season computed from them (CIELAB · ITA°). Try these colours on
+              in the fitting room below.
             </p>
           </div>
         )}
@@ -382,6 +390,40 @@ function Stat({
 
 /** Confidence and completeness of the season call. Deliberately prominent:
  *  a skin-only reading is a weaker claim and the user should see that. */
+/** Both skin readings side by side, so a disagreement is visible, not hidden. */
+function CrossCheck({ check }: { check: NonNullable<SkinTone["crossCheck"]> }) {
+  const sameSeason = check.photoSeason === check.youcamSeason;
+  return (
+    <div
+      className={`mt-3 rounded-lg border px-3 py-2 text-[11px] ${
+        check.agree ? "border-emerald-200 bg-emerald-50/60 text-emerald-800" : "border-amber-200 bg-amber-50/60 text-amber-800"
+      }`}
+    >
+      <p className="font-semibold">
+        {check.agree ? "Skin colour cross-checked ✓" : "Skin colour readings disagree"}
+      </p>
+      <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1">
+        <span className="flex items-center gap-1.5">
+          <span className="h-3.5 w-3.5 rounded-sm border border-stone-300" style={{ background: check.photoHex }} />
+          Your photo <code>{check.photoHex}</code> → {check.photoSeason}
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-3.5 w-3.5 rounded-sm border border-stone-300" style={{ background: check.youcamHex }} />
+          YouCam analyzer <code>{check.youcamHex}</code> → {check.youcamSeason}
+        </span>
+        <span>ΔE {check.deltaE}</span>
+      </div>
+      <p className="mt-1.5 text-[10.5px] opacity-80">
+        {check.agree
+          ? "Two independent readings agree, so this season rests on more than one measurement."
+          : sameSeason
+            ? "The readings differ in colour but land in the same season. Your photo leads because it follows the actual pixels; YouCam's reading is lighting-normalised."
+            : "The readings point to different seasons, so confidence is capped. Your photo leads because it follows the actual pixels; YouCam's reading is lighting-normalised."}
+      </p>
+    </div>
+  );
+}
+
 function ConfidenceBar({
   analysis,
 }: {

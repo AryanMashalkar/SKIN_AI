@@ -61,5 +61,43 @@ const tone = analyzeAppearance({ skin: c.skin, eye: c.eye, hair: c.hair });
 assert("measured colours produce a season", typeof tone.seasonLabel === "string" && tone.seasonLabel.length > 0);
 assert("all three features are used", tone.analysis?.inputs.skin && tone.analysis?.inputs.hair && tone.analysis?.inputs.eye);
 
+// --- cross-check: photo sample vs YouCam -----------------------------------------
+const { resolveTone, SKIN_AGREE_DELTA_E, DISAGREE_CONFIDENCE_CAP } = await import("../src/lib/tone-crosscheck.ts");
+const base = { hair: "#1c1410", eye: "#2b1a12", hairEyeBy: "youcam", photoConfident: true };
+
+assert("no reading at all -> no tone", resolveTone({ ...base }) === null);
+
+const photoOnly = resolveTone({ ...base, photoSkin: "#b07a5a" });
+assert("photo only: skin from the photo", photoOnly.measuredBy === "photo-sample" && photoOnly.hex === "#b07a5a");
+assert("photo only: no cross-check", photoOnly.crossCheck === undefined);
+assert("hair/eye source is recorded", photoOnly.hairEyeBy === "youcam");
+
+const youcamOnly = resolveTone({ ...base, youcamSkin: "#715544", youcamLighting: "good" });
+assert("YouCam only: skin from YouCam", youcamOnly.measuredBy === "youcam" && youcamOnly.hex === "#715544");
+assert("YouCam only with good lighting: not low confidence", youcamOnly.lowConfidence === false);
+assert("YouCam only with poor lighting: low confidence", resolveTone({ ...base, youcamSkin: "#715544", youcamLighting: "dark" }).lowConfidence === true);
+
+const same = resolveTone({ ...base, photoSkin: "#b07a5a", youcamSkin: "#b07a5a" });
+assert("identical readings agree", same.crossCheck.agree === true && same.crossCheck.deltaE === 0);
+assert("agreement keeps confidence", same.lowConfidence === false && same.analysis.confidence === photoOnly.analysis.confidence);
+
+// The case seen live: YouCam read a medium-brown face much darker.
+const split = resolveTone({ ...base, photoSkin: "#b07a5a", youcamSkin: "#715544" });
+assert("the photo sample leads when both exist", split.measuredBy === "photo-sample" && split.hex === "#b07a5a");
+assert("both readings are reported", split.crossCheck.photoHex === "#b07a5a" && split.crossCheck.youcamHex === "#715544");
+assert("a large gap is a disagreement", split.crossCheck.deltaE > SKIN_AGREE_DELTA_E && split.crossCheck.agree === false);
+assert("disagreement lowers confidence", split.lowConfidence === true);
+assert(
+  "confidence is capped exactly when the seasons differ",
+  split.crossCheck.photoSeason !== split.crossCheck.youcamSeason
+    ? split.analysis.confidence <= DISAGREE_CONFIDENCE_CAP
+    : split.analysis.confidence === photoOnly.analysis.confidence,
+);
+
+const near = resolveTone({ ...base, photoSkin: "#b07a5a", youcamSkin: "#b27c5c" });
+assert("a small gap in the same season agrees", near.crossCheck.deltaE <= SKIN_AGREE_DELTA_E && near.crossCheck.agree === (near.crossCheck.photoSeason === near.crossCheck.youcamSeason));
+const shaky = resolveTone({ ...base, photoSkin: "#b07a5a", youcamSkin: "#b07a5a", photoConfident: false });
+assert("an unconfident photo sample stays low confidence even when YouCam agrees", shaky.lowConfidence === true);
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/AryanMashalkar/SKIN_AI/actions/workflows/ci.yml/badge.svg)](https://github.com/AryanMashalkar/SKIN_AI/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![tests](https://img.shields.io/badge/tests-388%20assertions-3fb950.svg)](scripts)
+[![tests](https://img.shields.io/badge/tests-404%20assertions-3fb950.svg)](scripts)
 [![YouCam API Hackathon](https://img.shields.io/badge/YouCam%20API-Skin%20AI%20%26%20eCommerce%20VTO-c9a227.svg)](https://youcam-api-skin-ai-ecommerce.devpost.com/)
 
 Submitted to the **YouCam API Skin AI & eCommerce VTO Hackathon**, eCommerce
@@ -54,7 +54,7 @@ own body** so you can see the difference instead of taking our word for it.
 | **The agent's tools** | `src/lib/agent/tools.ts` (pure, tested) · `src/lib/agent/run.ts` (AI loop on Groq) |
 | **How honest it is** | [`data/seasons/README.md`](data/seasons/README.md) — what is validated, what is not, and the exact wording we will not use |
 | **It runs on your machine** | `npm install && npm run dev` — works with **zero keys**, in labelled demo mode |
-| **It verifies itself** | `npm test` — 388 assertions across ten suites |
+| **It verifies itself** | `npm test` — 404 assertions across ten suites |
 
 ---
 
@@ -73,8 +73,8 @@ period, on top of that codebase. The commits are on the
 | **Faithful recolouring.** Lightness is remapped toward the target (median-matched, so dark linings don't skew it). | The old recolour kept the photo's lightness, so a dark colour on a light garment came out pastel, and its saturation boost tinted greys red. | `f0f9e4f` |
 | **Proof shot rebuilt.** One real garment, rendered on you twice: our pick vs. the colour in the product photo. | It shows the purchase being corrected, not an abstract "clash colour". | `f0f9e4f` |
 | **Occasion stylist (agent).** Describe the occasion and budget; an AI model (`gpt-oss-120b` on Groq) plans with the measured scan and two tools (`find_pieces`, `propose_look`). Fit, colour distance, verdict and total all come from the tools; `propose_look` rejects invented items, clashing colours and looks over budget, and the model must fix and resubmit. Without an AI key, a rules planner runs the same tools and the card says so. | An agent workflow whose output is measured, not generated. | `38f07ef` |
-| **YouCam Facial Color Tones Analyzer.** Skin, eye and hair colour are now measured by YouCam, in parallel with Skin Analysis, instead of sampled in the browser; the in-browser sample remains the fallback. | A third YouCam API, and the season engine's inputs come from the sponsor's own measurement. | `02e81cf` |
-| **149 new test assertions** (239 → 388) covering ranking, recolour maths, the proof choice, per-colour cart lines, every agent tool and the rules planner. | The new behaviour is pinned, not just demoed. | all |
+| **YouCam Facial Color Tones Analyzer, with a cross-check.** Hair and eye colour are now measured by YouCam, in parallel with Skin Analysis. Skin colour is measured twice, by YouCam and by our white-balanced photo sample, and the report shows both; disagreement lowers confidence instead of being hidden. | A third YouCam API, used where it measures well and checked where it doesn't: live testing showed its skin colour reading darker than the photo. | `02e81cf` |
+| **165 new test assertions** (239 → 404) covering ranking, recolour maths, the proof choice, per-colour cart lines, every agent tool and the rules planner. | The new behaviour is pinned, not just demoed. | all |
 
 ---
 
@@ -114,7 +114,7 @@ One bag holds both a serum and a shirt, because one scan chose both.
 | Step | YouCam API | What we do |
 | --- | --- | --- |
 | Read concerns | **Skin Analysis** (S2S v2.1) | `file → presigned PUT → task → poll`, parsing the real `results.output[]` — eleven `ui_score`s plus `skin_type`, `all` and `skin_age`. |
-| Read colouring | **Facial Color Tones Analyzer** (S2S v2.0) + *(our engine)* | Runs **in parallel** with Skin Analysis on the same photo: measured skin, eye and hair hex colours (and YouCam's lighting check) → CIELAB → ITA°, undertone, chroma → twelve-season classification. Without a key, or if that call fails, the engine falls back to an in-browser sample of the face and the hair/eye swatches the user picked; the report says which source was used. |
+| Read colouring | **Facial Color Tones Analyzer** (S2S v2.0) + *(our engine)* | Runs **in parallel** with Skin Analysis on the same photo. Its eye and hair colours feed the season engine directly. Its **skin** colour is a **cross-check**: in testing it was repeatable but read darker than the photo itself (it behaves like a lighting-normalised estimate), so skin colour comes from our white-balanced in-browser sample of the face, and the report shows both readings, their ΔE, and the season each implies. When they disagree, confidence drops (capped at 50% if the seasons differ) and the report says why. Without a key, hair and eye come from the user's swatches. |
 | Pick the colourway | **Skin Analysis** + *(our engine)* | Rank each garment's colourways by CIELAB distance to the season palette; the redness score from the same scan lowers red colourways. |
 | Try it on | **Apparel VTO** (S2S v2.0) | `POST /task/cloth { src_file_url, ref_file_url, garment_category }` → poll → the chosen colourway rendered on the user's photo. |
 | Prove it | **Apparel VTO** | Render one garment **twice** on the user: our colourway pick vs. the colour in its product photo. |
@@ -267,7 +267,7 @@ cp .env.example .env.local   # PERFECTCORP_API_KEY for the YouCam APIs,
                              # GROQ_API_KEY for the AI stylist (both optional)
 npm run dev                  # http://localhost:3000
 
-npm test                     # 388 assertions, ten suites
+npm test                     # 404 assertions, ten suites
 npm run validate:season      # season engine vs reference archetypes
 npm run agreement            # inter-rater kappa + engine accuracy (awaiting data)
 npm run calibrate:season     # re-fit engine parameters by grid search
@@ -310,7 +310,7 @@ data/seasons/
   reference-archetypes.json       # 24 synthetic cases (regression gate)
   labelled-photos.json            # expert labels — schema ready, awaiting data
   README.md                       # what is proven, what is not
-scripts/*.test.mjs                # ten suites, 388 assertions
+scripts/*.test.mjs                # ten suites, 404 assertions
 ```
 
 ---

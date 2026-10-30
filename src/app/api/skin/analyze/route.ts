@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { hasApiKey, runSkinAnalysis } from "@/lib/perfectcorp";
 import { runToneAnalysis, type MeasuredColours } from "@/lib/tone-api";
 import { normalizeApiResult, type SkinProfile } from "@/lib/skin";
-import { analyzeAppearance } from "@/lib/season";
+import { resolveTone } from "@/lib/tone-crosscheck";
 import { check, clientKey, rateLimitHeaders, RULES } from "@/lib/rate-limit";
 import { mockSkinProfile } from "@/lib/mock";
 
@@ -58,28 +58,27 @@ export async function POST(request: NextRequest) {
     // no/invalid form body
   }
 
-  // Attach the personal-colour analysis. With a key, skin, eye and hair colour
-  // come from YouCam's Facial Color Tones Analyzer (`measured`). Without one,
-  // or if that call fails, skin colour is the in-browser sample of the face
-  // region (`skinHex`) and hair/eye are the swatches the user picked. All three
-  // feed the three-axis season model — the server stays pure, no native image
-  // decoding.
+  // Attach the personal-colour analysis. Skin colour is the in-browser,
+  // white-balanced sample of the face (`skinHex`), cross-checked against
+  // YouCam's Facial Color Tones Analyzer (`measured`) when that ran; hair and
+  // eye colour come from YouCam when available, else the swatches the user
+  // picked. See lib/tone-crosscheck.ts for why the photo sample leads. The
+  // server stays pure, no native image decoding.
   function withTone(profile: SkinProfile, measured: MeasuredColours | null = null): SkinProfile {
-    const skin = measured?.skin ?? skinHex;
-    if (skin) {
-      try {
-        profile.tone = {
-          ...analyzeAppearance({
-            skin,
-            hair: measured?.hair ?? hairHex ?? undefined,
-            eye: measured?.eye ?? eyeHex ?? undefined,
-          }),
-          lowConfidence: measured ? measured.lighting !== undefined && measured.lighting !== "good" : !skinConfident,
-          measuredBy: measured ? "youcam" : "photo-sample",
-        };
-      } catch {
-        /* tone is optional */
-      }
+    const fromYouCam = Boolean(measured?.hair || measured?.eye);
+    try {
+      const tone = resolveTone({
+        photoSkin: skinHex,
+        photoConfident: skinConfident,
+        youcamSkin: measured?.skin,
+        youcamLighting: measured?.lighting,
+        hair: measured?.hair ?? hairHex ?? undefined,
+        eye: measured?.eye ?? eyeHex ?? undefined,
+        hairEyeBy: fromYouCam ? "youcam" : "swatches",
+      });
+      if (tone) profile.tone = tone;
+    } catch {
+      /* tone is optional */
     }
     return profile;
   }

@@ -61,10 +61,12 @@ colour of that same item suits you — and shows it on you before you buy."*
   **confidence bar**.
 - **Say:** "One selfie. **YouCam Skin Analysis** scores eleven skin concerns —
   including redness, which matters in a minute. At the same time, the **YouCam
-  Facial Color Tones Analyzer** measures my skin, hair and eye colour, and
-  MIROIR turns that into a season — Deep Autumn, with how confident it is."
-- **Point at:** the line under the season card that says the colours were
-  measured by YouCam (it only says so when that call succeeded).
+  Facial Color Tones Analyzer** measures my hair and eye colour and gives a
+  second reading of my skin, which MIROIR cross-checks against the photo, then
+  turns into a season — Deep Autumn, with how confident it is."
+- **Point at:** the cross-check box under the season card: both skin readings,
+  their ΔE, and whether they agree. Say it plainly: when two measurements
+  disagree, MIROIR tells you instead of hiding it.
 
 ## 1:05–1:40 — The right colourway (the engine + YouCam Apparel VTO)
 
@@ -95,8 +97,8 @@ colour of that same item suits you — and shows it on you before you buy."*
 - **On screen:** the README's **"Updated during the submission period"** table,
   or the look card with the bag.
 - **Say:** "Skin Analysis and the Color Tones Analyzer read me, Apparel VTO proves the colour on me, and
-  the stylist plans the whole look — every number measured, three hundred and
-  eighty-eight tests, and your photo is deleted the moment the render finishes.
+  the stylist plans the whole look — every number measured, four hundred and
+  four tests, and your photo is deleted the moment the render finishes.
   That's MIROIR."
 
 ---
