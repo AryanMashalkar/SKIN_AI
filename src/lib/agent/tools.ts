@@ -29,6 +29,8 @@ export interface LookItem {
   /** Measured, from the colourway ranking. Never from the model. */
   fit: number;
   verdict: ColourwayVerdict;
+  /** A red-family colour chosen while the scan flags redness. */
+  red: boolean;
   reason: string;
   /** The stylist's own words on why this piece suits the occasion. */
   why: string;
@@ -175,10 +177,16 @@ export interface ProposeInput {
  * Validates and assembles the final look. Rejections come back as tool errors
  * so the model can fix the look and propose again, rather than the server
  * silently "correcting" it.
+ *
+ * The budget is the store's, not the model's: a USD budget stated in the brief
+ * is enforced even if the model omits it, and a budget in another currency is
+ * never applied (the model is not trusted to convert). The note is rebuilt by
+ * `composeNote`, so every factual sentence on the card is the store's.
  */
 export function proposeLook(
   profile: SkinProfile,
   input: ProposeInput,
+  brief = "",
 ): { ok: true; look: Omit<Look, "source" | "trace"> } | { ok: false; error: string } {
   if (!input.items?.length) return { ok: false, error: "A look needs at least one item." };
   if (input.items.length > 3) return { ok: false, error: "Keep a look to three items or fewer." };
@@ -197,7 +205,7 @@ export function proposeLook(
     if (!ranked) {
       return {
         ok: false,
-        error: `"${item.colourway_id}" is not a ranked colourway of ${garment.name}. Call rank_colours for it first.`,
+        error: `"${item.colourway_id}" is not a colourway of ${garment.name}. Use an id from find_pieces.`,
       };
     }
     if (ranked.verdict === "clash") {
@@ -210,7 +218,7 @@ export function proposeLook(
   }
 
   const total = items.reduce((s, i) => s + i.price, 0);
-  const budget = input.budget_usd ?? null;
+  const budget = hasForeignBudget(brief) ? null : (budgetFromBrief(brief) ?? input.budget_usd ?? null);
   if (budget !== null && total > budget) {
     return {
       ok: false,
@@ -220,8 +228,51 @@ export function proposeLook(
 
   return {
     ok: true,
-    look: { headline: input.headline, note: input.note, items, total, budget },
+    look: {
+      headline: input.headline,
+      note: composeNote(profile, input.note, items, total, budget, brief),
+      items,
+      total,
+      budget,
+    },
   };
+}
+
+/** Sentences about money, redness or scores: facts only the store may state. */
+const FACT_SENTENCE = /[$₹€£]|\b(usd|inr|rupees?|budget|price[sd]?|cost|afford|reds?|redness|scores?|fit of|ΔE|delta)\b/i;
+
+/**
+ * The card's note: the model's styling sentences, minus any sentence that
+ * states a fact (budget, currency, redness, scores), followed by the facts as
+ * the store computed them from the actual look. Live testing showed the model
+ * claiming "reds were avoided" beside a brick tee, and converting a rupee
+ * budget it was told not to touch; this makes both impossible.
+ */
+export function composeNote(
+  profile: SkinProfile,
+  modelNote: string,
+  items: LookItem[],
+  total: number,
+  budget: number | null,
+  brief: string,
+): string {
+  const styling = modelNote
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter((s) => s && !FACT_SENTENCE.test(s));
+
+  const facts: string[] = [];
+  if (budget !== null) facts.push(`Total $${total} of your $${budget} budget.`);
+  if (hasForeignBudget(brief)) facts.push("Your budget isn't in USD, so it wasn't applied (prices are USD).");
+  if (profile.scores.redness < REDNESS_ELEVATED_BELOW) {
+    const reds = items.filter((i) => i.red);
+    facts.push(
+      reds.length === 0
+        ? "Redness is flagged today, so no red tones were chosen."
+        : `Redness is flagged today; the ${reds.map((i) => `${i.colourName} ${i.garmentName}`).join(" and ")} ${reds.length === 1 ? "is a red tone" : "are red tones"}.`,
+    );
+  }
+  return [...styling, ...facts].join(" ");
 }
 
 function toItem(
@@ -238,6 +289,7 @@ function toItem(
     price: garment.price,
     fit: ranked.fit,
     verdict: ranked.verdict,
+    red: ranked.redFlag,
     reason: ranked.reason,
     why,
   };

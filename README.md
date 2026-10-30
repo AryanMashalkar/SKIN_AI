@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/AryanMashalkar/SKIN_AI/actions/workflows/ci.yml/badge.svg)](https://github.com/AryanMashalkar/SKIN_AI/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![tests](https://img.shields.io/badge/tests-366%20assertions-3fb950.svg)](scripts)
+[![tests](https://img.shields.io/badge/tests-375%20assertions-3fb950.svg)](scripts)
 [![YouCam API Hackathon](https://img.shields.io/badge/YouCam%20API-Skin%20AI%20%26%20eCommerce%20VTO-c9a227.svg)](https://youcam-api-skin-ai-ecommerce.devpost.com/)
 
 Submitted to the **YouCam API Skin AI & eCommerce VTO Hackathon**, eCommerce
@@ -54,7 +54,7 @@ own body** so you can see the difference instead of taking our word for it.
 | **The agent's tools** | `src/lib/agent/tools.ts` (pure, tested) · `src/lib/agent/run.ts` (AI loop on Groq) |
 | **How honest it is** | [`data/seasons/README.md`](data/seasons/README.md) — what is validated, what is not, and the exact wording we will not use |
 | **It runs on your machine** | `npm install && npm run dev` — works with **zero keys**, in labelled demo mode |
-| **It verifies itself** | `npm test` — 366 assertions across nine suites |
+| **It verifies itself** | `npm test` — 375 assertions across nine suites |
 
 ---
 
@@ -73,7 +73,7 @@ period, on top of that codebase. The commits are on the
 | **Faithful recolouring.** Lightness is remapped toward the target (median-matched, so dark linings don't skew it). | The old recolour kept the photo's lightness, so a dark colour on a light garment came out pastel, and its saturation boost tinted greys red. | `f0f9e4f` |
 | **Proof shot rebuilt.** One real garment, rendered on you twice: our pick vs. the colour in the product photo. | It shows the purchase being corrected, not an abstract "clash colour". | `f0f9e4f` |
 | **Occasion stylist (agent).** Describe the occasion and budget; an AI model (`gpt-oss-120b` on Groq) plans with the measured scan and two tools (`find_pieces`, `propose_look`). Fit, colour distance, verdict and total all come from the tools; `propose_look` rejects invented items, clashing colours and looks over budget, and the model must fix and resubmit. Without an AI key, a rules planner runs the same tools and the card says so. | An agent workflow whose output is measured, not generated. | `38f07ef` |
-| **127 new test assertions** (239 → 366) covering ranking, recolour maths, the proof choice, per-colour cart lines, every agent tool and the rules planner. | The new behaviour is pinned, not just demoed. | all |
+| **136 new test assertions** (239 → 375) covering ranking, recolour maths, the proof choice, per-colour cart lines, every agent tool and the rules planner. | The new behaviour is pinned, not just demoed. | all |
 
 ---
 
@@ -266,7 +266,7 @@ cp .env.example .env.local   # PERFECTCORP_API_KEY for the YouCam APIs,
                              # GROQ_API_KEY for the AI stylist (both optional)
 npm run dev                  # http://localhost:3000
 
-npm test                     # 366 assertions, nine suites
+npm test                     # 375 assertions, nine suites
 npm run validate:season      # season engine vs reference archetypes
 npm run agreement            # inter-rater kappa + engine accuracy (awaiting data)
 npm run calibrate:season     # re-fit engine parameters by grid search
@@ -309,7 +309,7 @@ data/seasons/
   reference-archetypes.json       # 24 synthetic cases (regression gate)
   labelled-photos.json            # expert labels — schema ready, awaiting data
   README.md                       # what is proven, what is not
-scripts/*.test.mjs                # nine suites, 366 assertions
+scripts/*.test.mjs                # nine suites, 375 assertions
 ```
 
 ---

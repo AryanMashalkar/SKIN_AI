@@ -190,6 +190,42 @@ assert("rupee budget: planner says it was not applied", /isn't in USD/.test(rupe
 assert("rupee budget: no budget is invented", rupeePlan.budget === null);
 assert("plain brief: no currency note", !/USD/.test(planWithoutModel(warm, "brunch under $130").note));
 
+// --- notes: the store states the facts (found in live AI testing) -----------------------
+const pick = (prof, gid) => rankColourwaysForSkin(prof, GARMENTS.find((g) => g.id === gid));
+const brickTee = pick(warm, "slim-fit-tee").find((r) => r.colourway.id === "brick");
+const madeUp = proposeLook(
+  warm,
+  { headline: "x", note: "Reds were avoided near the face. Olive and brick play well together.", budget_usd: null, items: [{ garment_id: "slim-fit-tee", colourway_id: brickTee.colourway.id, why: "" }] },
+  "Brunch",
+);
+assert("a model claim about reds is removed when redness is not flagged", madeUp.ok && !/red/i.test(madeUp.look.note.replace(/brick/gi, "")));
+assert("the model's styling sentence survives", madeUp.ok && madeUp.look.note.includes("Olive and brick play well together."));
+
+const flushedRed = pick(flushed, "slim-fit-tee").find((r) => r.redFlag);
+const honestRed = proposeLook(
+  flushed,
+  { headline: "x", note: "Reds were kept away from the face.", budget_usd: null, items: [{ garment_id: "slim-fit-tee", colourway_id: flushedRed.colourway.id, why: "" }] },
+  "Office",
+);
+assert("with redness flagged and a red piece chosen, the note says so", honestRed.ok && /is a red tone/.test(honestRed.look.note) && !/kept away/.test(honestRed.look.note));
+const flushedCalm = pick(flushed, "slim-fit-tee").find((r) => !r.redFlag && r.verdict !== "clash");
+const noRed = proposeLook(flushed, { headline: "x", note: "", budget_usd: null, items: [{ garment_id: "slim-fit-tee", colourway_id: flushedCalm.colourway.id, why: "" }] }, "Office");
+assert("with redness flagged and no red piece, the note says none were chosen", noRed.ok && /no red tones were chosen/.test(noRed.look.note));
+
+const rupee = proposeLook(
+  warm,
+  { headline: "x", note: "All catalogue items exceed the ₹4,000 (~$48) budget. Rich tones for a celebration.", budget_usd: 48, items: [{ garment_id: "slim-fit-tee", colourway_id: brickTee.colourway.id, why: "" }] },
+  "Cousin's wedding, budget ₹4000",
+);
+assert("a rupee budget is never applied, even if the model converts it", rupee.ok && rupee.look.budget === null);
+assert("the model's currency conversion is removed from the note", rupee.ok && !/48|exceed/.test(rupee.look.note));
+assert("the store says the budget wasn't applied", rupee.ok && /isn't in USD/.test(rupee.look.note));
+
+const enforced = proposeLook(warm, { headline: "x", note: "", budget_usd: null, items: [{ garment_id: "cotton-jacket", colourway_id: best.colourway.id, why: "" }] }, "Dinner under $50");
+assert("a USD budget in the brief is enforced even if the model omits it", enforced.ok === false && /over the \$50 budget/.test(enforced.error));
+const stated = proposeLook(warm, { headline: "x", note: "", budget_usd: null, items: [{ garment_id: "cotton-jacket", colourway_id: best.colourway.id, why: "" }] }, "Brunch under $130");
+assert("the store states the total against the budget", stated.ok && stated.look.note.includes("Total $96 of your $130 budget."));
+
 // --- readJson: platform errors are not JSON ----------------------------------------------
 const { readJson } = await import("../src/lib/http.ts");
 const plain413 = await readJson(new Response("Request Entity Too Large", { status: 413, headers: { "content-type": "text/plain" } }));

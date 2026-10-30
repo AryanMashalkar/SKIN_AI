@@ -54,8 +54,8 @@ Steps:
 
 Rules:
 - Never state a measurement the tools did not return.
-- Prices are USD. Set budget_usd only for a dollar budget; for any other currency leave it out and say in the note that it was not converted.
-- If redness is flagged, say in the note that reds were kept away from the face.
+- Prices are USD. Set budget_usd only for a dollar budget. Never convert another currency.
+- The note is about styling only: how the pieces work together for the occasion. Do not mention budget, prices, currency, redness or scores in it; the store adds those facts itself.
 - If nothing in the catalogue suits the occasion, say so in the note rather than stretching a piece.
 - headline under 8 words; note at most two sentences; "why" one short sentence per piece.`;
 
@@ -178,11 +178,19 @@ async function callGroqOnce(messages: ChatMessage[], deadline: number): Promise<
   }
 }
 
-/** One retry on a rate limit, when Groq's wait fits inside the time budget. */
+/**
+ * One retry when it can help: a rate limit whose wait fits inside the time
+ * budget, or Groq's `tool_use_failed` 400 (the model emitted a malformed tool
+ * call; sampling again usually produces a valid one).
+ */
 async function callGroq(messages: ChatMessage[], deadline: number): Promise<ChatResponse> {
   try {
     return await callGroqOnce(messages, deadline);
   } catch (err) {
+    if (err instanceof GroqError && err.status === 400 && err.detail.includes("tool_use_failed")) {
+      console.error(`[agent] Groq 400 tool_use_failed, retrying once`);
+      return callGroqOnce(messages, deadline);
+    }
     const wait = err instanceof GroqError && err.status === 429 ? err.retryAfterS : null;
     if (wait === null || wait > MAX_RETRY_WAIT_S || Date.now() + wait * 1000 + 5_000 > deadline) throw err;
     await new Promise((r) => setTimeout(r, wait * 1000));
@@ -298,7 +306,7 @@ export async function runOccasionAgent(profile: SkinProfile, brief: string): Pro
             budget_usd: typeof args.budget_usd === "number" ? args.budget_usd : null,
             items: Array.isArray(args.items) ? (args.items as ProposeInput["items"]) : [],
           };
-          const proposed = proposeLook(profile, input);
+          const proposed = proposeLook(profile, input, brief);
           trace.push({
             tool: name,
             input: { items: input.items.length },
