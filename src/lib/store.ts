@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Product } from "@/lib/products";
 import type { Garment } from "@/lib/fashion/products";
+import type { Colourway } from "@/lib/fashion/colourways";
 import type { SkinProfile } from "@/lib/skin";
 import {
   type CartLine,
@@ -30,7 +31,7 @@ interface StoreState {
   clearProfile: () => void;
 
   addProduct: (product: Product, qty?: number) => void;
-  addGarment: (garment: Garment, size: string) => void;
+  addGarment: (garment: Garment, size: string, colourway?: Colourway) => void;
   removeFromCart: (id: string, size?: string) => void;
   setQty: (id: string, qty: number, size?: string) => void;
   clearCart: () => void;
@@ -65,9 +66,9 @@ export const useStore = create<StoreState>()(
           cart: addLine(s.cart, fromProduct(product), { qty }),
           cartOpen: true,
         })),
-      addGarment: (garment, size) =>
+      addGarment: (garment, size, colourway) =>
         set((s) => ({
-          cart: addLine(s.cart, fromGarment(garment), { size }),
+          cart: addLine(s.cart, fromGarment(garment, colourway), { size }),
           cartOpen: true,
         })),
       removeFromCart: (id, size) =>

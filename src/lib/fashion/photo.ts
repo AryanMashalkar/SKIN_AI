@@ -4,7 +4,7 @@
 // NOT crop to the face — VTO wants the whole upper/full body — we just cap the
 // resolution to keep the upload small and re-encode as clean JPEG.
 
-import { assertUsableImage, MAX_UPLOAD_BYTES } from "@/lib/image";
+import { assertUsableImage, MAX_TRYON_PHOTO_BYTES } from "@/lib/image";
 
 const MAX_EDGE = 1280;
 
@@ -42,13 +42,14 @@ export async function preparePhoto(file: File): Promise<FashionPhoto> {
   ctx.imageSmoothingQuality = "high";
   ctx.drawImage(bitmap, 0, 0, w, h);
 
-  // This one is sent as a base64 data URL (~1.37x the binary size), so step the
-  // quality down until the encoded string is safely under the route's limit.
+  // This one is sent as a base64 data URL (~1.37x the binary size) alongside
+  // the garment image, so step the quality down until it fits the try-on
+  // budget (see MAX_TRYON_PHOTO_BYTES).
   let dataUrl = canvas.toDataURL("image/jpeg", 0.9);
-  for (let q = 0.75; dataUrlBytes(dataUrl) > MAX_UPLOAD_BYTES && q >= 0.4; q -= 0.15) {
+  for (let q = 0.75; dataUrlBytes(dataUrl) > MAX_TRYON_PHOTO_BYTES && q >= 0.4; q -= 0.15) {
     dataUrl = canvas.toDataURL("image/jpeg", q);
   }
-  if (dataUrlBytes(dataUrl) > MAX_UPLOAD_BYTES) {
+  if (dataUrlBytes(dataUrl) > MAX_TRYON_PHOTO_BYTES) {
     throw new Error("That photo is too large to process — try a smaller one.");
   }
 

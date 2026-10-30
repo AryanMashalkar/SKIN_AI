@@ -39,6 +39,8 @@ export interface RateLimitRule {
 export const RULES = {
   skinAnalyze: { limit: 12, windowMs: 10 * 60_000 },
   tryOn: { limit: 20, windowMs: 10 * 60_000 },
+  // Each brief can run several model turns.
+  agent: { limit: 10, windowMs: 10 * 60_000 },
 } as const satisfies Record<string, RateLimitRule>;
 
 /** Swap point for a shared backend. In-memory is the default. */

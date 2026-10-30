@@ -1,13 +1,18 @@
 "use client";
 
-// Browser-side garment recolouring for the "prove it on your photo" comparison.
+// Browser-side garment recolouring for colourways and the "prove it" shot.
 //
 // We take a product garment image and re-tint the fabric to a target colour
-// while preserving its shading (folds, highlights, shadows) — i.e. an HSL
-// "colour" blend: keep each pixel's Lightness, replace its Hue+Saturation with
-// the target's. Near-white background pixels are left untouched so only the
-// garment is recoloured. Running this in the browser keeps the heavy native
-// `sharp` dependency off the serverless runtime.
+// while preserving its shading (folds, highlights, shadows): each pixel takes
+// the target's Hue+Saturation, and its Lightness is remapped so the garment's
+// average matches the target's (see lightness.ts). Near-white background
+// pixels are left untouched so only the garment is recoloured. Running this in
+// the browser keeps the heavy native `sharp` dependency off the serverless
+// runtime.
+
+import { remapLightness } from "@/lib/fashion/lightness";
+
+const cache = new Map<string, Promise<string>>();
 
 function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
   r /= 255;
@@ -72,14 +77,28 @@ async function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
+function isBackground(r: number, g: number, b: number): boolean {
+  return r > 235 && g > 235 && b > 235;
+}
+
 /**
  * Recolours a garment image to `targetHex`, preserving shading. Returns a JPEG
- * data URL. Near-white background pixels are kept white.
+ * data URL. Near-white background pixels are kept white. Results are cached
+ * per image and colour, since every card and modal asks for the same few.
  */
-export async function recolorGarment(
-  imageSrc: string,
-  targetHex: string,
-): Promise<string> {
+export function recolorGarment(imageSrc: string, targetHex: string): Promise<string> {
+  const key = `${imageSrc}|${targetHex}`;
+  let pending = cache.get(key);
+  if (!pending) {
+    pending = render(imageSrc, targetHex);
+    // A failed render must not poison the cache for the next attempt.
+    pending.catch(() => cache.delete(key));
+    cache.set(key, pending);
+  }
+  return pending;
+}
+
+async function render(imageSrc: string, targetHex: string): Promise<string> {
   const img = await loadImage(imageSrc);
   const canvas = document.createElement("canvas");
   canvas.width = img.naturalWidth || 512;
@@ -88,20 +107,39 @@ export async function recolorGarment(
   if (!ctx) throw new Error("Canvas 2D unavailable");
   ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-  const [th, ts] = hexToHsl(targetHex);
+  const [th, ts, tl] = hexToHsl(targetHex);
   const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
   const px = data.data;
+
+  // First pass: the garment's median lightness, background excluded. Median,
+  // not mean: a dark lining or open zip pulls the mean down, which then lifts
+  // the fabric itself well above the swatch the shopper picked.
+  const histogram = new Uint32Array(256);
+  let count = 0;
+  for (let i = 0; i < px.length; i += 4) {
+    if (isBackground(px[i], px[i + 1], px[i + 2])) continue;
+    histogram[Math.round(rgbToHsl(px[i], px[i + 1], px[i + 2])[2] * 255)]++;
+    count++;
+  }
+  let median = 0.5;
+  for (let bin = 0, seen = 0; bin < 256 && count; bin++) {
+    seen += histogram[bin];
+    if (seen >= count / 2) {
+      median = bin / 255;
+      break;
+    }
+  }
+  // The swatch's own saturation, so the render matches the dot the shopper
+  // clicked. (An earlier "nudge" also tinted greys red, since their hue is 0.)
+  const sat = ts;
 
   for (let i = 0; i < px.length; i += 4) {
     const r = px[i];
     const g = px[i + 1];
     const b = px[i + 2];
-    // keep near-white background and near-black seams untouched
-    if (r > 235 && g > 235 && b > 235) continue;
+    if (isBackground(r, g, b)) continue;
     const [, , l] = rgbToHsl(r, g, b);
-    // Apply target hue+saturation, keep the pixel's own lightness. Nudge
-    // saturation up a touch so the colour reads clearly on screen.
-    const [nr, ng, nb] = hslToRgb(th, Math.min(1, ts * 0.9 + 0.15), l);
+    const [nr, ng, nb] = hslToRgb(th, sat, remapLightness(l, median, tl));
     px[i] = nr;
     px[i + 1] = ng;
     px[i + 2] = nb;

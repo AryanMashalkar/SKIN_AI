@@ -1,9 +1,19 @@
 "use client";
 
-import { Sparkles, Check } from "lucide-react";
+import { Sparkles, Check, AlertTriangle } from "lucide-react";
 import type { Garment } from "@/lib/fashion/products";
 import type { StyledGarment } from "@/lib/fashion/styling";
-import { useFashion } from "@/lib/fashion/store";
+import type { ColourwayVerdict } from "@/lib/fashion/colourways";
+import { useFashion, resultKey } from "@/lib/fashion/store";
+import { useColourway } from "@/lib/fashion/useColourway";
+import { ColourwayPicker } from "@/components/fashion/ColourwayPicker";
+
+const VERDICT_BADGE: Record<ColourwayVerdict, { label: string; className: string } | null> = {
+  best: { label: "Best colour for you", className: "bg-emerald-400/90 text-emerald-950" },
+  good: { label: "In your palette", className: "bg-emerald-400/90 text-emerald-950" },
+  workable: null,
+  clash: { label: "Clashes with your palette", className: "bg-amber-400/90 text-amber-950" },
+};
 
 export function GarmentCard({
   garment,
@@ -13,7 +23,11 @@ export function GarmentCard({
   styled?: StyledGarment | null;
 }) {
   const openTryOn = useFashion((s) => s.openTryOn);
-  const result = useFashion((s) => s.results[garment.id]);
+  const state = useColourway(garment);
+  const { colourway, verdict, image } = state;
+  const result = useFashion((s) => s.results[resultKey(garment.id, colourway.id)]);
+
+  const badge = verdict ? VERDICT_BADGE[verdict.verdict] : null;
 
   return (
     <div className="group overflow-hidden rounded-2xl border border-white/10 bg-neutral-900">
@@ -26,15 +40,29 @@ export function GarmentCard({
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={result || garment.image}
-          alt={garment.name}
-          className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+          src={result || image || garment.image}
+          alt={`${garment.name} in ${colourway.name}`}
+          className={`h-full w-full object-cover transition duration-500 group-hover:scale-[1.03] ${
+            image || result ? "" : "opacity-40"
+          }`}
           onError={(e) => {
             (e.currentTarget as HTMLImageElement).style.visibility = "hidden";
           }}
         />
-        {/* Skin-match badge takes priority over the marketing tag. */}
-        {styled?.flatters ? (
+        {/* Colourway verdict, then the photographed-colour verdict, then the
+            marketing tag. */}
+        {badge ? (
+          <span
+            className={`absolute left-3 top-3 flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold backdrop-blur ${badge.className}`}
+          >
+            {verdict?.verdict === "clash" ? (
+              <AlertTriangle className="h-3 w-3" />
+            ) : (
+              <Check className="h-3 w-3" />
+            )}
+            {badge.label}
+          </span>
+        ) : !verdict && styled?.flatters ? (
           <span className="absolute left-3 top-3 flex items-center gap-1 rounded-full bg-emerald-400/90 px-2.5 py-1 text-[11px] font-semibold text-emerald-950 backdrop-blur">
             <Check className="h-3 w-3" /> Flatters your skin
           </span>
@@ -59,15 +87,32 @@ export function GarmentCard({
         </p>
         <h3 className="mt-1 font-medium text-white">{garment.name}</h3>
 
-        {/* Explainable skin-informed reason. */}
-        {styled && (
+        <ColourwayPicker garment={garment} state={state} />
+
+        {/* Explainable reason: the colourway's measured verdict when there is
+            a palette, otherwise the photographed colour's styling verdict. */}
+        {verdict ? (
           <p
             className={`mt-1.5 text-xs leading-snug ${
-              styled.caution ? "text-amber-300/70" : "text-emerald-300/70"
+              verdict.verdict === "clash"
+                ? "text-amber-300/70"
+                : verdict.verdict === "workable"
+                  ? "text-white/50"
+                  : "text-emerald-300/70"
             }`}
           >
-            {styled.reason}
+            {verdict.reason}
           </p>
+        ) : (
+          styled && (
+            <p
+              className={`mt-1.5 text-xs leading-snug ${
+                styled.caution ? "text-amber-300/70" : "text-emerald-300/70"
+              }`}
+            >
+              {styled.reason}
+            </p>
+          )
         )}
 
         <div className="mt-2 flex items-center justify-between">

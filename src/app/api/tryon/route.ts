@@ -19,9 +19,14 @@ export const maxDuration = 60;
  * route would `Buffer.from()` an arbitrarily large attacker-controlled base64
  * string straight into serverless memory.
  */
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
-/** Matching cap on the raw JSON body (two images + fields, base64 ~1.37x). */
-const MAX_BODY_BYTES = 15 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
+/**
+ * Cap on the raw JSON body (two images + fields, base64 ~1.37x). Vercel itself
+ * rejects function bodies over 4.5 MB before this route runs, so that is the
+ * real ceiling; the client sizes the photo to stay under it
+ * (MAX_TRYON_PHOTO_BYTES).
+ */
+const MAX_BODY_BYTES = 4.5 * 1024 * 1024;
 
 interface TryOnResponse {
   resultUrl: string;
@@ -108,7 +113,8 @@ export async function POST(req: NextRequest) {
 
   const base = publicBase(req);
   // Default: the static garment image. If the client sent a recoloured variant
-  // (proof-shot comparison), host that and use it as the garment instead.
+  // (a colourway, or one side of the proof shot), host that and use it as the
+  // garment instead.
   let refUrl = `${base}${garment.image}`;
 
   const isPublic = /^https:\/\//.test(base) && !base.includes("localhost");

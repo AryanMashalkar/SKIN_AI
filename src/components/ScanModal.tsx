@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { preprocessImage } from "@/lib/image";
+import { readJson } from "@/lib/http";
+import type { SkinProfile } from "@/lib/skin";
 import { HAIR_OPTIONS, EYE_OPTIONS, type ColorOption } from "@/lib/appearance-options";
 import { detectAppearance } from "@/lib/appearance-sample";
 import {
@@ -204,7 +206,12 @@ function ScanModalBody() {
         method: "POST",
         body: form,
       });
-      const data = await res.json();
+      const { data, message } = await readJson<{ profile?: SkinProfile }>(res);
+      if (!data?.profile) {
+        setError(message || "Analysis failed. Please try again.");
+        setPhase("error");
+        return;
+      }
       setProfile(data.profile);
       close();
       requestAnimationFrame(() => {

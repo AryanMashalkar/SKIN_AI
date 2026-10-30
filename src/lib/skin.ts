@@ -168,6 +168,8 @@ export interface SkinProfile {
   skinType: string;
   overall: number;
   demo: boolean;
+  /** Why the concern scores are simulated, when `demo` is true. */
+  demoReason?: string;
   capturedAt: string;
   // Personal-colour analysis sampled from the selfie (optional — present when
   // the tone sampler succeeds). Typed as SkinTone in lib/color to avoid a hard
