@@ -138,8 +138,9 @@ export async function POST(request: NextRequest) {
     // but a real colour reading.
     const reason = skinRun.reason;
     const message = reason instanceof Error ? reason.message : "unknown error";
+    console.error(`[analyze] skin analysis failed, showing simulated scores: ${message}`);
     return json({
-      profile: withTone(mockSkinProfile(), measured),
+      profile: { ...withTone(mockSkinProfile(), measured), demoReason: friendlyReason(message) },
       source: "mock",
       note: `Live analysis failed (${message}) — showing simulated scores; colours ${measured ? "measured by YouCam" : "measured from your photo"}.`,
     });
@@ -151,6 +152,26 @@ export async function POST(request: NextRequest) {
       note: `Live analysis failed (${message}) — showing simulated scores; skin tone measured from your photo.`,
     });
   }
+}
+
+/**
+ * A shopper-readable version of a Skin Analysis failure. YouCam's error codes
+ * (e.g. `error_src_face_too_small`) are kept in brackets so a judge or the
+ * developer can still see the real cause.
+ */
+function friendlyReason(message: string): string {
+  const code = message.match(/error_[a-z_]+|[A-Z][a-zA-Z]+(?:Insufficiency|Parameters)/)?.[0];
+  const hint =
+    code && /face_too_small|face_area|src_face/.test(code)
+      ? "Your face was too small in the photo — use a close-up selfie where your face fills most of the frame."
+      : code && /no_face/.test(code)
+        ? "No face was found — face the camera in good light."
+        : code && /CreditInsufficiency/.test(code)
+          ? "The YouCam account is out of units."
+          : /timed out/.test(message)
+            ? "YouCam took too long to answer — try again."
+            : "The live skin analysis didn't complete — try another photo.";
+  return code ? `${hint} (${code})` : hint;
 }
 
 function json(

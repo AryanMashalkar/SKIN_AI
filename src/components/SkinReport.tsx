@@ -56,6 +56,11 @@ export function SkinReport({ profile }: { profile: SkinProfile }) {
               Analyzed {ALL_CONCERNS.length} dermatological concerns · everything
               below is now matched to your skin.
             </p>
+            {profile.demo && profile.demoReason && (
+              <p className="mt-2 max-w-xl rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                Concern scores are simulated: {profile.demoReason}
+              </p>
+            )}
           </div>
           <button
             onClick={openScan}
