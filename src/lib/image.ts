@@ -108,7 +108,7 @@ function isSkinPixel(r: number, g: number, b: number): boolean {
 /** Samples a representative skin colour from the central face region of a
  *  drawn canvas. Returns { hex, ratio } where ratio is the fraction of the
  *  window that read as skin (a confidence signal), or null if too few. */
-function sampleSkinHex(
+export function sampleSkinHex(
   ctx: CanvasRenderingContext2D,
   w: number,
   h: number,

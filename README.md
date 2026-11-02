@@ -52,6 +52,7 @@ own body** so you can see the difference instead of taking our word for it.
 | **Three YouCam APIs, wired** | `src/lib/perfectcorp.ts` (Skin Analysis) · `src/lib/tone-api.ts` (Facial Color Tones Analyzer) · `src/lib/fashion/vto.ts` (Apparel VTO) |
 | **The colour engine** | `src/lib/season.ts` (season) · `src/lib/fashion/colourways.ts` (which colourway) |
 | **The agent's tools** | `src/lib/agent/tools.ts` (pure, tested) · `src/lib/agent/run.ts` (AI loop on Groq) |
+| **What we tested, and what failed** | [skin-ai-lake.vercel.app/evidence](https://skin-ai-lake.vercel.app/evidence) — pre-registered rules, stress test and pilot, including the failures |
 | **How honest it is** | [`data/seasons/README.md`](data/seasons/README.md) — what is validated, what is not, and the exact wording we will not use |
 | **It runs on your machine** | `npm install && npm run dev` — works with **zero keys**, in labelled demo mode |
 | **It verifies itself** | `npm test` — 417 assertions across eleven suites |
