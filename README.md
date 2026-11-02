@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/AryanMashalkar/SKIN_AI/actions/workflows/ci.yml/badge.svg)](https://github.com/AryanMashalkar/SKIN_AI/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![tests](https://img.shields.io/badge/tests-404%20assertions-3fb950.svg)](scripts)
+[![tests](https://img.shields.io/badge/tests-417%20assertions-3fb950.svg)](scripts)
 [![YouCam API Hackathon](https://img.shields.io/badge/YouCam%20API-Skin%20AI%20%26%20eCommerce%20VTO-c9a227.svg)](https://youcam-api-skin-ai-ecommerce.devpost.com/)
 
 Submitted to the **YouCam API Skin AI & eCommerce VTO Hackathon**, eCommerce
@@ -54,7 +54,7 @@ own body** so you can see the difference instead of taking our word for it.
 | **The agent's tools** | `src/lib/agent/tools.ts` (pure, tested) · `src/lib/agent/run.ts` (AI loop on Groq) |
 | **How honest it is** | [`data/seasons/README.md`](data/seasons/README.md) — what is validated, what is not, and the exact wording we will not use |
 | **It runs on your machine** | `npm install && npm run dev` — works with **zero keys**, in labelled demo mode |
-| **It verifies itself** | `npm test` — 404 assertions across ten suites |
+| **It verifies itself** | `npm test` — 417 assertions across eleven suites |
 
 ---
 
@@ -74,7 +74,7 @@ period, on top of that codebase. The commits are on the
 | **Proof shot rebuilt.** One real garment, rendered on you twice: our pick vs. the colour in the product photo. | It shows the purchase being corrected, not an abstract "clash colour". | `f0f9e4f` |
 | **Occasion stylist (agent).** Describe the occasion and budget; an AI model (`gpt-oss-120b` on Groq) plans with the measured scan and two tools (`find_pieces`, `propose_look`). Fit, colour distance, verdict and total all come from the tools; `propose_look` rejects invented items, clashing colours and looks over budget, and the model must fix and resubmit. Without an AI key, a rules planner runs the same tools and the card says so. | An agent workflow whose output is measured, not generated. | `38f07ef` |
 | **YouCam Facial Color Tones Analyzer, with a cross-check.** Hair and eye colour are now measured by YouCam, in parallel with Skin Analysis. Skin colour is measured twice, by YouCam and by our white-balanced photo sample, and the report shows both; disagreement lowers confidence instead of being hidden. | A third YouCam API, used where it measures well and checked where it doesn't: live testing showed its skin colour reading darker than the photo. | `02e81cf` |
-| **165 new test assertions** (239 → 404) covering ranking, recolour maths, the proof choice, per-colour cart lines, every agent tool and the rules planner. | The new behaviour is pinned, not just demoed. | all |
+| **178 new test assertions** (239 → 417) covering ranking, recolour maths, the proof choice, per-colour cart lines, every agent tool and the rules planner. | The new behaviour is pinned, not just demoed. | all |
 
 ---
 

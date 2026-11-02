@@ -151,7 +151,14 @@ function sampleSkinHex(
   };
 }
 
-export async function preprocessImage(file: File): Promise<Processed> {
+/**
+ * `focus` narrows the crop further, as fractions of the default 3:4 crop. It is
+ * how a second pass zooms in on a face that was too small (lib/face-frame.ts).
+ */
+export async function preprocessImage(
+  file: File,
+  focus?: { x: number; y: number; w: number; h: number },
+): Promise<Processed> {
   assertUsableImage(file);
   const bitmap = await loadBitmap(file);
 
@@ -166,8 +173,14 @@ export async function preprocessImage(file: File): Promise<Processed> {
     // too tall -> crop top/bottom
     cropH = Math.round(bitmap.width / TARGET_ASPECT);
   }
-  const cropX = Math.round((bitmap.width - cropW) / 2);
-  const cropY = Math.round((bitmap.height - cropH) / 2);
+  let cropX = Math.round((bitmap.width - cropW) / 2);
+  let cropY = Math.round((bitmap.height - cropH) / 2);
+  if (focus) {
+    cropX += Math.round(focus.x * cropW);
+    cropY += Math.round(focus.y * cropH);
+    cropW = Math.round(focus.w * cropW);
+    cropH = Math.round(focus.h * cropH);
+  }
 
   // Target output size: keep portrait, ensure the short edge is big enough
   // for face detection, but cap the long edge.

@@ -98,7 +98,7 @@ colour of that same item suits you — and shows it on you before you buy."*
   or the look card with the bag.
 - **Say:** "Skin Analysis and the Color Tones Analyzer read me, Apparel VTO proves the colour on me, and
   the stylist plans the whole look — every number measured, four hundred and
-  four tests, and your photo is deleted the moment the render finishes.
+  seventeen tests, and your photo is deleted the moment the render finishes.
   That's MIROIR."
 
 ---

@@ -18,7 +18,8 @@ import { preprocessImage } from "@/lib/image";
 import { readJson } from "@/lib/http";
 import type { SkinProfile } from "@/lib/skin";
 import { HAIR_OPTIONS, EYE_OPTIONS, type ColorOption } from "@/lib/appearance-options";
-import { detectAppearance } from "@/lib/appearance-sample";
+import { detectAppearance, detectFaceBox } from "@/lib/appearance-sample";
+import { faceFocus } from "@/lib/face-frame";
 import {
   requestCameraStream,
   waitForVideoElement,
@@ -61,6 +62,7 @@ function ScanModalBody() {
   const [eyeHex, setEyeHex] = useState<string | null>(null);
   const [skinConfident, setSkinConfident] = useState(true);
   const [detecting, setDetecting] = useState(false);
+  const [zoomed, setZoomed] = useState(false);
   const [warming, setWarming] = useState(false);
   const [light, setLight] = useState<{ castStrength: number; exposureGain: number } | null>(null);
   const [detected, setDetected] = useState<{ hair: boolean; eye: boolean; notes: string[] } | null>(null);
@@ -102,7 +104,16 @@ function ScanModalBody() {
 
   async function handleFile(file: File) {
     try {
-      const processed = await preprocessImage(file);
+      let processed = await preprocessImage(file);
+
+      // A face that is small in the frame gets rejected by Skin Analysis, so
+      // zoom in on it now rather than fail after the upload. If no face is
+      // found, the original framing is kept.
+      const face = await detectFaceBox(processed.canvas);
+      const focus = face && faceFocus(face, processed.width, processed.height);
+      if (focus) processed = await preprocessImage(file, focus);
+      setZoomed(Boolean(focus));
+
       setPreview(processed.previewUrl);
       setBlob(processed.blob);
       setSkinHex(processed.skinHex);
@@ -383,6 +394,11 @@ function ScanModalBody() {
                   className="max-h-[38dvh] w-full rounded-2xl object-cover"
                 />
               </div>
+              {zoomed && (
+                <p className="text-center text-[11px] text-stone-500">
+                  We zoomed in on your face so the scan can read it.
+                </p>
+              )}
               <div className="rounded-2xl border border-stone-200 bg-stone-50/60 p-3">
                 <p className="text-xs font-semibold text-stone-700">
                   Hair &amp; eye colour{" "}

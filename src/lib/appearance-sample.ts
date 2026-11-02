@@ -165,6 +165,28 @@ function withoutBenignWasmLogs<T>(fn: () => T): T {
 }
 
 /**
+ * The face's bounding box in canvas pixels, or null if no face was found or the
+ * model is unavailable. Like everything here, it must never break a scan.
+ */
+export async function detectFaceBox(
+  canvas: HTMLCanvasElement,
+): Promise<{ x: number; y: number; w: number; h: number } | null> {
+  try {
+    const landmarker = await getLandmarker();
+    if (!landmarker) return null;
+    const points = withoutBenignWasmLogs(() => landmarker.detect(canvas)).faceLandmarks[0];
+    if (!points?.length) return null;
+    const xs = points.map((p) => p.x * canvas.width);
+    const ys = points.map((p) => p.y * canvas.height);
+    const x = Math.min(...xs);
+    const y = Math.min(...ys);
+    return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Snaps a measured colour to the nearest catalogued pigment option.
  *
  * Exported for testing: this is where noisy CV output gets quantised into a

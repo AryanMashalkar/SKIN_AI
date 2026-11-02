@@ -2,25 +2,18 @@
 
 import { ScanFace, Sparkles, ShieldCheck, Palette } from "lucide-react";
 import { useStore } from "@/lib/store";
-import { seasonDef } from "@/lib/color";
-
-/** The four gauges in the preview card. Values are illustrative, not measured -
- *  the card is marked as a sample so it cannot be mistaken for a real result.
- *  Hues are distinct enough to read as separate metrics while staying out of
- *  the cool end of the wheel, which fought the warm page. */
-const SAMPLE = [
-  { label: "Hydration", value: 58, color: "#2f8fb3" },
-  { label: "Redness", value: 62, color: "#c2453f" },
-  { label: "Radiance", value: 71, color: "#e0a02c" },
-  { label: "Pores", value: 66, color: "#7c6a46" },
-] as const;
-
-/** The real True Autumn palette from the engine, not a hand-picked array - so
- *  the hero shows exactly what a real result would show. */
-const SAMPLE_SEASON = seasonDef("true-autumn");
+import { SAMPLE_PROFILE } from "@/lib/sample-profile";
 
 export function Hero() {
   const openScan = useStore((s) => s.openScan);
+  const setProfile = useStore((s) => s.setProfile);
+
+  function loadSample() {
+    setProfile(SAMPLE_PROFILE);
+    requestAnimationFrame(() => {
+      document.getElementById("report")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
 
   return (
     <section className="relative overflow-hidden">
@@ -60,18 +53,18 @@ export function Hero() {
             className="animate-rise display mt-6 font-serif text-[3.25rem] font-medium text-stone-900 sm:text-7xl"
             style={{ "--delay": "80ms" } as React.CSSProperties}
           >
-            Shop for the skin
+            See the colour
             <br />
-            you <em className="text-gradient italic">actually</em> have.
+            that <em className="text-gradient italic">actually</em> suits you.
           </h1>
 
           <p
             className="animate-rise mt-7 max-w-md text-lg leading-relaxed text-stone-600"
             style={{ "--delay": "160ms" } as React.CSSProperties}
           >
-            One selfie. Eleven dermatological concerns scored in seconds — and
-            your colour season read from the same photo. Then a storefront that
-            rearranges itself around your real skin.
+            One selfie. YouCam reads your skin, hair and eyes, MIROIR ranks every
+            colour of every garment for you, and you see the difference on your
+            own photo before you buy.
           </p>
 
           <div
@@ -85,12 +78,12 @@ export function Hero() {
               <ScanFace className="h-5 w-5 transition-transform duration-300 group-hover:rotate-6" />
               Scan my skin — free
             </button>
-            <a
-              href="#shop"
+            <button
+              onClick={loadSample}
               className="rounded-full border border-stone-300 bg-white/40 px-7 py-4 font-medium text-stone-700 backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:border-stone-400 hover:bg-white/70"
             >
-              Browse the shelf
-            </a>
+              See a sample result
+            </button>
           </div>
 
           {/* Trust row. Three concrete promises beat one line of small print. */}
@@ -113,94 +106,40 @@ export function Hero() {
         </div>
 
         {/* ---------------------------------------------------------------- */}
-        {/* Preview card */}
+        {/* The proof shot: real try-on output, not an illustration. */}
         <div
-          className="animate-rise relative hidden lg:block"
+          className="animate-rise"
           style={{ "--delay": "180ms" } as React.CSSProperties}
         >
-          <div className="border-gradient shadow-lift relative mx-auto aspect-[4/5] w-full max-w-sm overflow-hidden rounded-[2rem] bg-white">
-            <div
-              className="absolute inset-0"
-              style={{
-                background:
-                  "linear-gradient(160deg, #f8f4ec 0%, #efe7d6 55%, #ffffff 100%)",
-              }}
-            />
-
-            <div className="relative flex h-full flex-col items-center justify-center gap-5 p-8">
-              <div className="relative">
-                <div className="animate-pulse-ring grid h-24 w-24 place-items-center rounded-full bg-white text-[#b5451f] shadow-soft">
-                  <ScanFace className="h-11 w-11" strokeWidth={1.5} />
-                </div>
-              </div>
-
-              <div className="w-full space-y-3">
-                {SAMPLE.map((row, i) => (
-                  <div key={row.label} className="flex items-center gap-3">
-                    <span className="w-[4.5rem] text-xs font-medium text-stone-500">
-                      {row.label}
-                    </span>
-                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-stone-200/70">
-                      <div
-                        className="animate-grow-x h-full rounded-full"
-                        style={
-                          {
-                            width: `${row.value}%`,
-                            background: row.color,
-                            "--delay": `${300 + i * 80}ms`,
-                          } as React.CSSProperties
-                        }
-                      />
-                    </div>
-                    <span className="w-7 text-right text-xs font-semibold tabular-nums text-stone-700">
-                      {row.value}
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Colour season strip - the differentiator, shown not told. */}
-              <div className="glass w-full rounded-2xl p-3.5">
-                <p className="text-[11px] uppercase tracking-wider text-stone-500">
-                  Your colour season
-                </p>
-                <p className="mt-0.5 font-serif text-lg font-medium text-stone-900">
-                  {SAMPLE_SEASON.label}
-                </p>
-                <div className="mt-2 flex gap-1.5">
-                  {SAMPLE_SEASON.palette.map((c, i) => (
-                    <span
-                      key={c.hex}
-                      title={c.name}
-                      className="animate-rise h-5 flex-1 rounded-full ring-1 ring-black/5"
-                      style={
-                        {
-                          background: c.hex,
-                          "--delay": `${560 + i * 50}ms`,
-                        } as React.CSSProperties
-                      }
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <span className="absolute right-3 top-3 rounded-full bg-stone-900/75 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-white backdrop-blur">
-              Sample
-            </span>
+          <div className="grid grid-cols-2 gap-3">
+            <figure className="shadow-lift overflow-hidden rounded-2xl bg-white">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/proof/navy.jpg"
+                alt="The overshirt in navy, MIROIR's pick, on the author's photo"
+                className="aspect-[3/4] w-full object-cover"
+              />
+              <figcaption className="p-3 text-xs text-stone-600">
+                <span className="block font-semibold text-emerald-700">MIROIR&apos;s pick: navy</span>
+                Closest palette colour, ΔE 4
+              </figcaption>
+            </figure>
+            <figure className="shadow-lift overflow-hidden rounded-2xl bg-white">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/proof/taupe.jpg"
+                alt="The same overshirt in washed taupe, as pictured, on the author's photo"
+                className="aspect-[3/4] w-full object-cover"
+              />
+              <figcaption className="p-3 text-xs text-stone-600">
+                <span className="block font-semibold text-amber-700">As pictured: washed taupe</span>
+                Nearest palette colour, ΔE 25
+              </figcaption>
+            </figure>
           </div>
-
-          {/* Floating match chip, overlapping the card edge for depth. */}
-          <div
-            className="glass animate-rise absolute -bottom-5 -left-4 rounded-2xl px-4 py-3"
-            style={{ "--delay": "540ms" } as React.CSSProperties}
-          >
-            <p className="text-[11px] text-stone-500">Top match for you</p>
-            <p className="text-sm font-semibold text-stone-900">
-              Hydra-Plump HA Serum{" "}
-              <span className="text-[#b5451f]">94%</span>
-            </p>
-          </div>
+          <p className="mt-3 text-center text-xs text-stone-500">
+            Same shirt, same photo. Real YouCam try-ons of the project&apos;s author.
+          </p>
         </div>
       </div>
     </section>
