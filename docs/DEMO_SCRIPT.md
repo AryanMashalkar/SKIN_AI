@@ -6,7 +6,7 @@ used**. Judges are not required to watch past three minutes, and many decide
 in the first twenty seconds — so the story and the proof shot come first, and
 the tour comes after.
 
-Colour names and numbers below come from a Deep Autumn test scan. **Read
+Colour names and numbers below come from a Deep Winter test scan. **Read
 yours off the screen** — your own scan may pick a different garment and
 colours, and the script should say what the app actually shows.
 
@@ -40,9 +40,9 @@ colour of that same item suits you — and shows it on you before you buy."*
 ## 0:00–0:20 — The problem, shown (the proof shot)
 
 - **On screen:** open straight on the result of **"Prove it on your photo"**:
-  the same jacket on you twice — *as pictured* vs. *our pick*.
-- **Say:** "This jacket sells in deep purple — that's the photo. On me, it's
-  this. Same jacket, same photo of me, only the colour changes. The left one
+  the same overshirt on you twice — *as pictured* vs. *our pick*.
+- **Say:** "This overshirt is pictured in washed taupe. On me, MIROIR picks
+  navy. Same shirt, same photo of me, only the colour changes. The left one
   is what MIROIR measured for my skin."
 - Hold the side-by-side for a full two seconds. **This is the frame judges
   remember.**
@@ -63,7 +63,7 @@ colour of that same item suits you — and shows it on you before you buy."*
   including redness, which matters in a minute. At the same time, the **YouCam
   Facial Color Tones Analyzer** measures my hair and eye colour and gives a
   second reading of my skin, which MIROIR cross-checks against the photo, then
-  turns into a season — Deep Autumn, with how confident it is."
+  turns into a season — Deep Winter, with how confident it is."
 - **Point at:** the cross-check box under the season card: both skin readings,
   their ΔE, and whether they agree. Say it plainly: when two measurements
   disagree, MIROIR tells you instead of hiding it.
@@ -72,9 +72,9 @@ colour of that same item suits you — and shows it on you before you buy."*
 
 - **Do:** back to the fitting room. Point at a card's swatches: the green dots
   and the amber one.
-- **Say** (on the snowboard jacket): "Every garment's colours are ranked for
-  me, with the number behind it — deep teal is closest to my palette, delta-E
-  four. Purple, the one in the photo, clashes."
+- **Say** (on the overshirt): "Every garment's colours are ranked for
+  me, with the number behind it — navy is closest to my palette, delta-E
+  four. Washed taupe, the one in the photo, is delta-E twenty-five."
 - **Do:** tap **Try on** → the chosen colourway → **Try it on**.
 - **Say:** "And **YouCam Apparel VTO** puts the colour I'd actually buy on my
   own photo."
