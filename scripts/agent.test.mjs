@@ -67,10 +67,10 @@ assert("search filters by max price", cheap.data.every((g) => g.price_usd <= 30)
 assert("search rejects an unknown occasion", searchCatalog({ occasion: "gala", max_price: null }).ok === false);
 
 // --- rank_colours ------------------------------------------------------------------
-const ranked = rankColours(warm, { garment_id: "cotton-jacket" });
+const ranked = rankColours(warm, { garment_id: "field-overshirt" });
 assert("rank_colours returns every colourway", ranked.ok && ranked.data.length === GARMENTS[0].colourways.length);
 assert("rank_colours rejects an unknown garment", rankColours(warm, { garment_id: "nope" }).ok === false);
-assert("rank_colours refuses without a tone", rankColours(untoned, { garment_id: "cotton-jacket" }).ok === false);
+assert("rank_colours refuses without a tone", rankColours(untoned, { garment_id: "field-overshirt" }).ok === false);
 
 // --- find_pieces (what the model actually calls) -------------------------------------
 const pieces = findPieces(warm, { occasion: "smart-casual", max_price: null });
@@ -93,12 +93,12 @@ assert("find_pieces refuses without a tone", findPieces(untoned, { occasion: nul
 assert("find_pieces output stays compact (< 2.5 KB for the whole catalogue)", JSON.stringify(findPieces(warm, { occasion: null }).data).length < 2500);
 
 // --- propose_look ------------------------------------------------------------------
-const best = rankColourwaysForSkin(warm, GARMENTS.find((g) => g.id === "cotton-jacket"))[0];
+const best = rankColourwaysForSkin(warm, GARMENTS.find((g) => g.id === "field-overshirt"))[0];
 const good = proposeLook(warm, {
   headline: "Weekend look",
   note: "",
   budget_usd: 200,
-  items: [{ garment_id: "cotton-jacket", colourway_id: best.colourway.id, why: "Easy layer." }],
+  items: [{ garment_id: "field-overshirt", colourway_id: best.colourway.id, why: "Easy layer." }],
 });
 assert("a valid look is accepted", good.ok === true);
 assert("the server computes the total", good.ok && good.look.total === 96);
@@ -122,7 +122,7 @@ const over = proposeLook(warm, {
   headline: "x",
   note: "",
   budget_usd: 50,
-  items: [{ garment_id: "cotton-jacket", colourway_id: best.colourway.id, why: "" }],
+  items: [{ garment_id: "field-overshirt", colourway_id: best.colourway.id, why: "" }],
 });
 assert("a look over budget is rejected", over.ok === false && /budget/.test(over.error));
 assert(
@@ -131,7 +131,7 @@ assert(
 );
 assert(
   "an invented colourway is rejected",
-  proposeLook(warm, { headline: "x", note: "", budget_usd: null, items: [{ garment_id: "cotton-jacket", colourway_id: "magenta", why: "" }] }).ok === false,
+  proposeLook(warm, { headline: "x", note: "", budget_usd: null, items: [{ garment_id: "field-overshirt", colourway_id: "magenta", why: "" }] }).ok === false,
 );
 assert(
   "the same piece twice is rejected",
@@ -140,8 +140,8 @@ assert(
     note: "",
     budget_usd: null,
     items: [
-      { garment_id: "cotton-jacket", colourway_id: best.colourway.id, why: "" },
-      { garment_id: "cotton-jacket", colourway_id: best.colourway.id, why: "" },
+      { garment_id: "field-overshirt", colourway_id: best.colourway.id, why: "" },
+      { garment_id: "field-overshirt", colourway_id: best.colourway.id, why: "" },
     ],
   }).ok === false,
 );
@@ -184,7 +184,7 @@ assert(
     }),
 );
 assert("redness flagged: the note says why", /redness/i.test(flushedPlan.note));
-assert("redness flag reaches the model's rank_colours output", rankColours(flushed, { garment_id: "cotton-jacket" }).data.some((r) => r.red_near_flagged_redness));
+assert("redness flag reaches the model's rank_colours output", rankColours(flushed, { garment_id: "field-overshirt" }).data.some((r) => r.red_near_flagged_redness));
 const rupeePlan = planWithoutModel(warm, "Cousin's wedding, budget ₹4000");
 assert("rupee budget: planner says it was not applied", /isn't in USD/.test(rupeePlan.note));
 assert("rupee budget: no budget is invented", rupeePlan.budget === null);
@@ -192,38 +192,38 @@ assert("plain brief: no currency note", !/USD/.test(planWithoutModel(warm, "brun
 
 // --- notes: the store states the facts (found in live AI testing) -----------------------
 const pick = (prof, gid) => rankColourwaysForSkin(prof, GARMENTS.find((g) => g.id === gid));
-const brickTee = pick(warm, "slim-fit-tee").find((r) => r.colourway.id === "brick");
+const brickTee = pick(warm, "crew-tee").find((r) => r.colourway.id === "brick");
 const madeUp = proposeLook(
   warm,
-  { headline: "x", note: "Reds were avoided near the face. Olive and brick play well together.", budget_usd: null, items: [{ garment_id: "slim-fit-tee", colourway_id: brickTee.colourway.id, why: "" }] },
+  { headline: "x", note: "Reds were avoided near the face. Olive and brick play well together.", budget_usd: null, items: [{ garment_id: "crew-tee", colourway_id: brickTee.colourway.id, why: "" }] },
   "Brunch",
 );
 assert("a model claim about reds is removed when redness is not flagged", madeUp.ok && !/red/i.test(madeUp.look.note.replace(/brick/gi, "")));
 assert("the model's styling sentence survives", madeUp.ok && madeUp.look.note.includes("Olive and brick play well together."));
 
-const flushedRed = pick(flushed, "slim-fit-tee").find((r) => r.redFlag);
+const flushedRed = pick(flushed, "crew-tee").find((r) => r.redFlag);
 const honestRed = proposeLook(
   flushed,
-  { headline: "x", note: "Reds were kept away from the face.", budget_usd: null, items: [{ garment_id: "slim-fit-tee", colourway_id: flushedRed.colourway.id, why: "" }] },
+  { headline: "x", note: "Reds were kept away from the face.", budget_usd: null, items: [{ garment_id: "crew-tee", colourway_id: flushedRed.colourway.id, why: "" }] },
   "Office",
 );
 assert("with redness flagged and a red piece chosen, the note says so", honestRed.ok && /is a red tone/.test(honestRed.look.note) && !/kept away/.test(honestRed.look.note));
-const flushedCalm = pick(flushed, "slim-fit-tee").find((r) => !r.redFlag && r.verdict !== "clash");
-const noRed = proposeLook(flushed, { headline: "x", note: "", budget_usd: null, items: [{ garment_id: "slim-fit-tee", colourway_id: flushedCalm.colourway.id, why: "" }] }, "Office");
+const flushedCalm = pick(flushed, "crew-tee").find((r) => !r.redFlag && r.verdict !== "clash");
+const noRed = proposeLook(flushed, { headline: "x", note: "", budget_usd: null, items: [{ garment_id: "crew-tee", colourway_id: flushedCalm.colourway.id, why: "" }] }, "Office");
 assert("with redness flagged and no red piece, the note says none were chosen", noRed.ok && /no red tones were chosen/.test(noRed.look.note));
 
 const rupee = proposeLook(
   warm,
-  { headline: "x", note: "All catalogue items exceed the ₹4,000 (~$48) budget. Rich tones for a celebration.", budget_usd: 48, items: [{ garment_id: "slim-fit-tee", colourway_id: brickTee.colourway.id, why: "" }] },
+  { headline: "x", note: "All catalogue items exceed the ₹4,000 (~$48) budget. Rich tones for a celebration.", budget_usd: 48, items: [{ garment_id: "crew-tee", colourway_id: brickTee.colourway.id, why: "" }] },
   "Cousin's wedding, budget ₹4000",
 );
 assert("a rupee budget is never applied, even if the model converts it", rupee.ok && rupee.look.budget === null);
 assert("the model's currency conversion is removed from the note", rupee.ok && !/48|exceed/.test(rupee.look.note));
 assert("the store says the budget wasn't applied", rupee.ok && /isn't in USD/.test(rupee.look.note));
 
-const enforced = proposeLook(warm, { headline: "x", note: "", budget_usd: null, items: [{ garment_id: "cotton-jacket", colourway_id: best.colourway.id, why: "" }] }, "Dinner under $50");
+const enforced = proposeLook(warm, { headline: "x", note: "", budget_usd: null, items: [{ garment_id: "field-overshirt", colourway_id: best.colourway.id, why: "" }] }, "Dinner under $50");
 assert("a USD budget in the brief is enforced even if the model omits it", enforced.ok === false && /over the \$50 budget/.test(enforced.error));
-const stated = proposeLook(warm, { headline: "x", note: "", budget_usd: null, items: [{ garment_id: "cotton-jacket", colourway_id: best.colourway.id, why: "" }] }, "Brunch under $130");
+const stated = proposeLook(warm, { headline: "x", note: "", budget_usd: null, items: [{ garment_id: "field-overshirt", colourway_id: best.colourway.id, why: "" }] }, "Brunch under $130");
 assert("the store states the total against the budget", stated.ok && stated.look.note.includes("Total $96 of your $130 budget."));
 
 // --- readJson: platform errors are not JSON ----------------------------------------------

@@ -367,12 +367,15 @@ export function planWithoutModel(profile: SkinProfile, brief: string): Look | { 
     .filter((x): x is LookItem => x !== null);
 
   const outer = candidates.filter((c) => garmentById(c.garmentId)?.category === "Outerwear");
-  const tops = candidates.filter((c) => garmentById(c.garmentId)?.category !== "Outerwear");
+  const tops = candidates.filter((c) => garmentById(c.garmentId)?.category === "Tops");
+  const bottoms = candidates.filter((c) => garmentById(c.garmentId)?.category === "Bottoms");
   const combos: LookItem[][] = [];
   for (const t of [null, ...tops]) {
     for (const o of [null, ...outer]) {
-      const combo = [t, o].filter((x): x is LookItem => x !== null);
-      if (combo.length) combos.push(combo);
+      for (const b of [null, ...bottoms]) {
+        const combo = [t, o, b].filter((x): x is LookItem => x !== null);
+        if (combo.length) combos.push(combo);
+      }
     }
   }
   const affordable = combos.filter((c) => budget === null || c.reduce((s, i) => s + i.price, 0) <= budget);

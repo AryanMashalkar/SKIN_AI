@@ -229,7 +229,7 @@ brief ────────────────────────�
   is short.
 - **It won't guess a currency.** Prices are USD; a ₹ or € budget is left unset
   and the note says so, rather than converting at an invented rate.
-- **Known limit:** the demo catalogue is six pieces (jackets and tops), so many
+- **Known limit:** the demo catalogue is five pieces (an overshirt, two tops and two bottoms), photographed by the author from their own clothes with brand logos removed; product names, brands and prices are fictional, and bottoms need a full-body photo to try on, so many
   occasions have little to choose from. The stylist is told to say so rather
   than stretch a piece to fit.
 
